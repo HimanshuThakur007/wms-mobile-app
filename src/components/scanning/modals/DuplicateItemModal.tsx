@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../context/ThemeContext';
+import { useLanguage } from '../../../context/LanguageContext';
 import { borderRadius, monoFont } from '../../../constants/theme';
 
 export interface DuplicateItemData {
@@ -45,6 +46,7 @@ export const DuplicateItemModal: React.FC<DuplicateItemModalProps> = ({
   onConfirm,
 }) => {
   const { colors } = useTheme();
+  const { t } = useLanguage();
 
   return (
     <Modal
@@ -66,9 +68,9 @@ export const DuplicateItemModal: React.FC<DuplicateItemModalProps> = ({
                     <Ionicons name="copy-outline" size={20} color={colors.amber} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Duplicate Item</Text>
+                    <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>{t('Duplicate Item', 'Duplicate Item')}</Text>
                     <Text style={[styles.modalSubtitle, { color: colors.textMuted }]}>
-                      This item was already scanned
+                      {t('This item was already scanned', 'This item was already scanned')}
                     </Text>
                   </View>
                   <TouchableOpacity
@@ -86,14 +88,14 @@ export const DuplicateItemModal: React.FC<DuplicateItemModalProps> = ({
                     <View style={styles.dupDetailsRow}>
                       {item.box_no && (
                         <Text style={[styles.dupDetailText, { color: colors.textSecondary }]}>
-                          Box: <Text style={{ color: colors.textPrimary, fontWeight: '700' }}>{item.box_no}</Text>
+                          {t('Box', 'Box')}: <Text style={{ color: colors.textPrimary, fontWeight: '700' }}>{item.box_no}</Text>
                         </Text>
                       )}
                       <Text style={[styles.dupDetailText, { color: colors.textSecondary }]}>
-                        DO Qty: <Text style={{ color: colors.textPrimary, fontWeight: '700' }}>{item.requested_quantity}</Text>
+                        {t('DO Qty', 'DO Qty')}: <Text style={{ color: colors.textPrimary, fontWeight: '700' }}>{item.requested_quantity}</Text>
                       </Text>
                       <Text style={[styles.dupDetailText, { color: colors.textSecondary }]}>
-                        Packed: <Text style={{ color: colors.textPrimary, fontWeight: '700' }}>{item.already_packed}</Text>
+                        {t('Packed', 'Packed')}: <Text style={{ color: colors.textPrimary, fontWeight: '700' }}>{item.already_packed}</Text>
                       </Text>
                     </View>
 
@@ -109,7 +111,7 @@ export const DuplicateItemModal: React.FC<DuplicateItemModalProps> = ({
                       }}
                     >
                       <Text style={[styles.dupDetailText, { color: colors.textSecondary }]}>
-                        Balance Qty:{' '}
+                        {t('Balance Qty', 'Balance Qty')}:{' '}
                         <Text
                           style={{
                             color: item.balance_qty > 0 ? colors.emerald : colors.amber,
@@ -131,7 +133,7 @@ export const DuplicateItemModal: React.FC<DuplicateItemModalProps> = ({
                           }}
                         >
                           <Text style={{ color: colors.amber, fontSize: 10, fontWeight: '700' }}>
-                            DO FULLY PACKED (+EXTRA)
+                            {t('DO FULLY PACKED (+EXTRA)', 'DO FULLY PACKED (+EXTRA)')}
                           </Text>
                         </View>
                       ) : (
@@ -144,7 +146,7 @@ export const DuplicateItemModal: React.FC<DuplicateItemModalProps> = ({
                           }}
                         >
                           <Text style={{ color: colors.emerald, fontSize: 10, fontWeight: '700' }}>
-                            {item.balance_qty} REMAINING
+                            {item.balance_qty} {t('REMAINING', 'REMAINING')}
                           </Text>
                         </View>
                       )}
@@ -154,8 +156,8 @@ export const DuplicateItemModal: React.FC<DuplicateItemModalProps> = ({
 
                 <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>
                   {item && item.balance_qty > 0
-                    ? 'ADD BALANCE QUANTITY'
-                    : 'ADD EXTRA PACKED QTY'}
+                    ? t('ADD BALANCE QUANTITY', 'ADD BALANCE QUANTITY')
+                    : t('ADD EXTRA PACKED QTY', 'ADD EXTRA PACKED QTY')}
                 </Text>
                 <View style={[styles.stepperWrap, { backgroundColor: colors.surface3, borderColor: colors.amber }]}>
                   <TouchableOpacity
@@ -193,7 +195,7 @@ export const DuplicateItemModal: React.FC<DuplicateItemModalProps> = ({
                     disabled={saving}
                     onPress={onClose}
                   >
-                    <Text style={[styles.modalCancelBtnText, { color: colors.textSecondary }]}>Cancel</Text>
+                    <Text style={[styles.modalCancelBtnText, { color: colors.textSecondary }]}>{t('Cancel', 'Cancel')}</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -208,7 +210,7 @@ export const DuplicateItemModal: React.FC<DuplicateItemModalProps> = ({
                     {saving ? (
                       <ActivityIndicator size="small" color="#0B0F14" />
                     ) : (
-                      <Text style={[styles.modalConfirmBtnText, { color: '#0B0F14' }]}>Add as New Row</Text>
+                      <Text style={[styles.modalConfirmBtnText, { color: '#0B0F14' }]}>{t('Add Duplicate Move', 'Add as New Row')}</Text>
                     )}
                   </TouchableOpacity>
                 </View>

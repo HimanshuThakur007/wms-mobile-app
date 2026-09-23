@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { borderRadius, monoFont } from '../../constants/theme';
 import { ScanSummary } from '../../types';
 
@@ -14,19 +15,22 @@ interface ScanStatsGridProps {
 export const ScanStatsGrid: React.FC<ScanStatsGridProps> = ({
   summary,
   onFilterSelect,
-  title = 'PACKING STATISTICS & PROGRESS',
+  title,
 }) => {
   const { colors } = useTheme();
+  const { t } = useLanguage();
+
+  const sectionTitle = title || t('PACKING STATISTICS & PROGRESS', 'PACKING STATISTICS & PROGRESS');
 
   return (
     <View style={[styles.statsSection, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
       <View style={styles.statsSectionHeader}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Ionicons name="stats-chart" size={13} color={colors.primary} />
-          <Text style={[styles.statsSectionTitle, { color: colors.textSecondary }]}>{title}</Text>
+          <Text style={[styles.statsSectionTitle, { color: colors.textSecondary }]}>{sectionTitle}</Text>
         </View>
         <Text style={[styles.statsSectionSub, { color: colors.textMuted }]}>
-          {summary.packed_qty}/{summary.requested_qty || summary.total_items} PACKED
+          {summary.packed_qty}/{summary.requested_qty || summary.total_items} {t('PACKED', 'PACKED')}
         </Text>
       </View>
 
@@ -43,7 +47,7 @@ export const ScanStatsGrid: React.FC<ScanStatsGridProps> = ({
           ]}
         >
           <Text style={[styles.statBoxVal, { color: colors.primary }]}>{summary.total_items}</Text>
-          <Text style={[styles.statBoxLabel, { color: colors.textMuted }]}>TOTAL</Text>
+          <Text style={[styles.statBoxLabel, { color: colors.textMuted }]}>{t('TOTAL', 'TOTAL')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -58,7 +62,7 @@ export const ScanStatsGrid: React.FC<ScanStatsGridProps> = ({
           ]}
         >
           <Text style={[styles.statBoxVal, { color: colors.emerald }]}>{summary.scanned_items}</Text>
-          <Text style={[styles.statBoxLabel, { color: colors.emerald }]}>SCANNED</Text>
+          <Text style={[styles.statBoxLabel, { color: colors.emerald }]}>{t('SCANNED', 'SCANNED')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -73,7 +77,7 @@ export const ScanStatsGrid: React.FC<ScanStatsGridProps> = ({
           ]}
         >
           <Text style={[styles.statBoxVal, { color: colors.primary }]}>{summary.packed_qty}</Text>
-          <Text style={[styles.statBoxLabel, { color: colors.textMuted }]}>PACKED</Text>
+          <Text style={[styles.statBoxLabel, { color: colors.textMuted }]}>{t('PACKED', 'PACKED')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -91,7 +95,7 @@ export const ScanStatsGrid: React.FC<ScanStatsGridProps> = ({
           ]}
         >
           <Text style={[styles.statBoxVal, { color: colors.amber }]}>{summary.pending_items}</Text>
-          <Text style={[styles.statBoxLabel, { color: colors.amber }]}>PENDING</Text>
+          <Text style={[styles.statBoxLabel, { color: colors.amber }]}>{t('PENDING', 'PENDING')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -107,7 +111,7 @@ export const ScanStatsGrid: React.FC<ScanStatsGridProps> = ({
           ]}
         >
           <Text style={[styles.statBoxVal, { color: colors.violet }]}>{summary.revised_items}</Text>
-          <Text style={[styles.statBoxLabel, { color: colors.violet }]}>REVISED</Text>
+          <Text style={[styles.statBoxLabel, { color: colors.violet }]}>{t('REVISED', 'REVISED')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -123,7 +127,7 @@ export const ScanStatsGrid: React.FC<ScanStatsGridProps> = ({
           ]}
         >
           <Text style={[styles.statBoxVal, { color: colors.red }]}>{summary.cancelled_items}</Text>
-          <Text style={[styles.statBoxLabel, { color: colors.red }]}>CANCELLED</Text>
+          <Text style={[styles.statBoxLabel, { color: colors.red }]}>{t('CANCELLED', 'CANCELLED')}</Text>
         </TouchableOpacity>
       </View>
     </View>

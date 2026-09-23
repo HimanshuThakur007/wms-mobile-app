@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../context/ThemeContext';
+import { useLanguage } from '../../../context/LanguageContext';
 import { borderRadius, monoFont } from '../../../constants/theme';
 
 interface CancelItemModalProps {
@@ -30,6 +31,7 @@ export const CancelItemModal: React.FC<CancelItemModalProps> = ({
   onConfirm,
 }) => {
   const { colors } = useTheme();
+  const { t } = useLanguage();
 
   return (
     <Modal
@@ -51,9 +53,9 @@ export const CancelItemModal: React.FC<CancelItemModalProps> = ({
                     <Ionicons name="alert-circle-outline" size={20} color={colors.red} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Cancel Item</Text>
+                    <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>{t('Cancel Item', 'Cancel Item')}</Text>
                     <Text style={[styles.modalSubtitle, { color: colors.textMuted }]}>
-                      This action cannot be undone
+                      {t('This action cannot be undone', 'This action cannot be undone')}
                     </Text>
                   </View>
                   <TouchableOpacity
@@ -65,7 +67,7 @@ export const CancelItemModal: React.FC<CancelItemModalProps> = ({
                   </TouchableOpacity>
                 </View>
 
-                <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>REMARKS *</Text>
+                <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>{t('REMARKS *', 'REMARKS *')}</Text>
                 <TextInput
                   style={[
                     styles.remarksInput,
@@ -75,7 +77,7 @@ export const CancelItemModal: React.FC<CancelItemModalProps> = ({
                       color: colors.textPrimary,
                     },
                   ]}
-                  placeholder="Enter reason for cancellation..."
+                  placeholder={t('Enter cancellation remarks...', 'Enter reason for cancellation...')}
                   placeholderTextColor={colors.textMuted}
                   value={remarks}
                   onChangeText={onRemarksChange}
@@ -88,7 +90,7 @@ export const CancelItemModal: React.FC<CancelItemModalProps> = ({
                     style={[styles.modalCancelBtn, { backgroundColor: colors.surface3, borderColor: colors.border }]}
                     onPress={onClose}
                   >
-                    <Text style={[styles.modalCancelBtnText, { color: colors.textSecondary }]}>Go Back</Text>
+                    <Text style={[styles.modalCancelBtnText, { color: colors.textSecondary }]}>{t('Back', 'Go Back')}</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -100,7 +102,7 @@ export const CancelItemModal: React.FC<CancelItemModalProps> = ({
                     disabled={!remarks.trim()}
                     onPress={onConfirm}
                   >
-                    <Text style={[styles.modalConfirmBtnText, { color: '#FFFFFF' }]}>Cancel Item</Text>
+                    <Text style={[styles.modalConfirmBtnText, { color: '#FFFFFF' }]}>{t('Cancel Item', 'Cancel Item')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>

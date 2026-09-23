@@ -18,6 +18,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../../src/context/AuthContext';
 import { useTheme } from '../../../src/context/ThemeContext';
+import { useLanguage } from '../../../src/context/LanguageContext';
 import { BrandLogo } from '../../../src/components/common/BrandLogo';
 import { HeaderActions } from '../../../src/components/common/HeaderActions';
 import {
@@ -52,6 +53,7 @@ export default function PutawayScanningScreen() {
   const params = useLocalSearchParams();
   const { user } = useAuth();
   const { colors, isDark } = useTheme();
+  const { t } = useLanguage();
 
   const grnNumberParam = String(params.grn_number || params.grn_numbers || 'GRN-1778').trim();
   const vouchDateParam = String(params.vouch_date || '');
@@ -513,7 +515,7 @@ export default function PutawayScanningScreen() {
         <View style={styles.headerLeft}>
           <BrandLogo size={32} rounded />
           <View>
-            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Putaway Scanning</Text>
+            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>{t('Putaway Scanning', 'Putaway Scanning')}</Text>
             <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
               GRN {activeGrn} · Bin {binLocation}{departments.length > 0 ? ` · ${departments[0]}` : ''}
             </Text>
@@ -616,7 +618,7 @@ export default function PutawayScanningScreen() {
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Ionicons name="create-outline" size={12} color={colors.textSecondary} />
-            <Text style={[styles.backBtnText, { color: colors.textSecondary }]}>Change</Text>
+            <Text style={[styles.backBtnText, { color: colors.textSecondary }]}>{t('Change', 'Change')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -655,17 +657,17 @@ export default function PutawayScanningScreen() {
                 <Ionicons name="cart" size={15} color={colors.violet} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.tableCardTitle, { color: colors.textPrimary }]}>Putaway Manifest</Text>
+                <Text style={[styles.tableCardTitle, { color: colors.textPrimary }]}>{t('Putaway Manifest', 'Putaway Manifest')}</Text>
                 <Text style={[styles.tableCardSub, { color: colors.textMuted }]}>
                   {allScannedItems.length > 5
-                    ? `BIN ${binLocation} · Latest 5 of ${allScannedItems.length} items`
-                    : `BIN ${binLocation} · ${activeItems.length} SKU${activeItems.length !== 1 ? 's' : ''} (${totalUnits} unit${totalUnits !== 1 ? 's' : ''})`}
+                    ? `BIN ${binLocation} · ${allScannedItems.length} items`
+                    : `BIN ${binLocation} · ${activeItems.length} SKUs (${totalUnits} units)`}
                 </Text>
               </View>
             </View>
             <View style={[styles.tableCountBadge, { backgroundColor: colors.violetMuted, borderColor: `${colors.violet}40` }]}>
               <Text style={[styles.tableCountText, { color: colors.violet }]}>
-                {totalUnits} Units Binned
+                {totalUnits} {t('BINNED', 'Units Binned')}
               </Text>
             </View>
           </View>
@@ -676,22 +678,22 @@ export default function PutawayScanningScreen() {
                 <Ionicons name="barcode-outline" size={28} color={colors.textMuted} />
               </View>
               <Text style={[styles.emptyTableTitle, { color: colors.textSecondary }]}>
-                No items scanned to bin
+                {t('No items scanned to bin', 'No items scanned to bin')}
               </Text>
               <Text style={[styles.emptyTableSub, { color: colors.textMuted }]}>
-                Trigger hardware scanner to allocate SKUs into {binLocation}
+                {t('Trigger hardware scanner to allocate SKUs into', 'Trigger hardware scanner to allocate SKUs into')} {binLocation}
               </Text>
             </View>
           ) : (
             <View style={styles.tableBodyWrap}>
               <View style={[styles.tableHeaderRow, { backgroundColor: colors.surface2, borderBottomColor: colors.border }]}>
                 <Text style={[styles.thCell, { color: colors.textMuted, width: 24, textAlign: 'center' }]}>#</Text>
-                <Text style={[styles.thCell, { color: colors.textMuted, width: 48 }]}>BIN</Text>
-                <Text style={[styles.thCell, { color: colors.textMuted, flex: 1 }]}>SKU</Text>
-                <Text style={[styles.thCell, { color: colors.textMuted, width: 34, textAlign: 'center' }]}>ORD</Text>
-                <Text style={[styles.thCell, { color: colors.textMuted, width: 44, textAlign: 'center' }]}>PUT</Text>
-                <Text style={[styles.thCell, { color: colors.textMuted, width: 28, textAlign: 'center' }]}>DIF</Text>
-                <Text style={[styles.thCell, { color: colors.textMuted, width: 50, textAlign: 'center' }]}>STAT</Text>
+                <Text style={[styles.thCell, { color: colors.textMuted, width: 48 }]}>{t('BIN', 'BIN')}</Text>
+                <Text style={[styles.thCell, { color: colors.textMuted, flex: 1 }]}>{t('SKU', 'SKU')}</Text>
+                <Text style={[styles.thCell, { color: colors.textMuted, width: 34, textAlign: 'center' }]}>{t('ORD', 'ORD')}</Text>
+                <Text style={[styles.thCell, { color: colors.textMuted, width: 44, textAlign: 'center' }]}>{t('PUT', 'PUT')}</Text>
+                <Text style={[styles.thCell, { color: colors.textMuted, width: 28, textAlign: 'center' }]}>{t('DIF', 'DIF')}</Text>
+                <Text style={[styles.thCell, { color: colors.textMuted, width: 50, textAlign: 'center' }]}>{t('STAT', 'STAT')}</Text>
               </View>
 
               {allScannedItems.slice(0, 5).map((item, idx) => {
@@ -859,21 +861,21 @@ export default function PutawayScanningScreen() {
         <View style={[styles.statsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.statsHeader}>
             <Ionicons name="stats-chart" size={14} color={colors.violet} />
-            <Text style={[styles.statsTitle, { color: colors.textSecondary }]}>PUTAWAY SUMMARY</Text>
+            <Text style={[styles.statsTitle, { color: colors.textSecondary }]}>{t('PUTAWAY SUMMARY', 'PUTAWAY SUMMARY')}</Text>
           </View>
 
           <View style={styles.statsRow}>
             <View style={[styles.statBox, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
               <Text style={[styles.statBoxNum, { color: colors.violet }]}>{allScannedItems.length}</Text>
-              <Text style={[styles.statBoxLabel, { color: colors.textMuted }]}>TOTAL LINES</Text>
+              <Text style={[styles.statBoxLabel, { color: colors.textMuted }]}>{t('TOTAL LINES', 'TOTAL LINES')}</Text>
             </View>
             <View style={[styles.statBox, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
               <Text style={[styles.statBoxNum, { color: colors.emerald }]}>{totalUnits}</Text>
-              <Text style={[styles.statBoxLabel, { color: colors.textMuted }]}>UNITS BINNED</Text>
+              <Text style={[styles.statBoxLabel, { color: colors.textMuted }]}>{t('UNITS BINNED', 'UNITS BINNED')}</Text>
             </View>
             <View style={[styles.statBox, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
               <Text style={[styles.statBoxNum, { color: colors.primary }]}>1</Text>
-              <Text style={[styles.statBoxLabel, { color: colors.textMuted }]}>GRN LINKED</Text>
+              <Text style={[styles.statBoxLabel, { color: colors.textMuted }]}>{t('GRN LINKED', 'GRN LINKED')}</Text>
             </View>
           </View>
         </View>
@@ -896,7 +898,7 @@ export default function PutawayScanningScreen() {
             <>
               <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
               <Text style={styles.submitBtnText} numberOfLines={1} ellipsizeMode="tail">
-                Submit Putaway ({totalUnits} Units)
+                {t('Submit Putaway', 'Submit Putaway')} ({totalUnits} {t('Units', 'Units')})
               </Text>
             </>
           )}

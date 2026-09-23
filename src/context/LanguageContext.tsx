@@ -8,89 +8,139 @@ interface LanguageContextType {
   isHindi: boolean;
   setLanguage: (lang: Language) => void;
   toggleLanguage: () => void;
-  t: (key: string, fallback?: string) => string;
+  t: (keyOrText: string, fallback?: string) => string;
 }
 
 const translations: Record<Language, Record<string, string>> = {
   en: {
-    // General & Navigation
-    'app_title': 'WMS Packing & Putaway',
-    'language': 'Language',
-    'english': 'English',
-    'hindi': 'हिंदी (Hindi)',
-    'switch_language': 'Display Language',
-    'switch_language_desc': 'Toggle app interface language (English / हिंदी)',
-    'sign_out': 'Sign Out',
-    'sign_out_desc': 'Are you sure you want to end your terminal session?',
-    'settings': 'Settings',
-    'terminal_settings': 'Terminal Settings',
-    'cancel': 'Cancel',
-    'confirm': 'Confirm',
-    'done': 'Done',
-    'submit': 'Submit',
-    'save': 'Save',
+    // Navigation & Headers
+    'WMS Packing': 'WMS Packing',
+    'Putaway Scanning': 'Putaway Scanning',
+    'Container Packing': 'Container Packing',
+    'Inventory': 'Inventory',
+    'Operations': 'Operations',
+    'Dashboard': 'Dashboard',
+    'Settings': 'Settings',
+    'Terminal Settings': 'Terminal Settings',
+    'Sign Out': 'Sign Out',
+    'Language': 'Language',
+    'English': 'English',
+    'Hindi': 'Hindi',
+    'Register': 'Register',
+    'Scan': 'Scan',
+    'Change': 'Change',
+    'Back': 'Back',
+    'Submit': 'Submit',
+    'Save': 'Save',
+    'Cancel': 'Cancel',
+    'Confirm': 'Confirm',
 
-    // Hardware Scanner & Receivers
-    'hardware_scanner': 'Hardware Scanner',
-    'tap_to_focus': 'TAP TO FOCUS',
-    'scanner_focused': 'SCANNER FOCUSED',
-    'ready_for_scan': 'Ready for laser barcode scan',
-    'tap_to_focus_sub': 'Tap to focus scanner',
-    'ready_to_scan_sku': '● Scanner Active — Ready to scan SKU...',
-    'processing_barcode': 'Processing barcode scan...',
-    'scanned': 'SCANNED',
-    'revised': 'REVISED',
-    'cancelled': 'CANCELLED',
-    'binned': 'BINNED',
+    // Scanner & Cards
+    'Hardware Scanner': 'Hardware Scanner',
+    'TAP TO FOCUS': 'TAP TO FOCUS',
+    'SCANNER FOCUSED': 'SCANNER FOCUSED',
+    'Ready for laser barcode scan': 'Ready for laser barcode scan',
+    'Tap to focus scanner': 'Tap to focus scanner',
+    '● Scanner Active — Ready to scan SKU...': '● Scanner Active — Ready to scan SKU...',
+    'Processing barcode scan...': 'Processing barcode scan...',
 
-    // Modules & Tabs
-    'wms_packing': 'WMS Packing',
-    'putaway': 'Putaway Scanning',
-    'container_packing': 'Container Packing',
-    'inventory': 'Inventory',
-    'operations': 'Operations',
-    'register': 'Register',
-    'scan': 'Scan',
+    // Cart & Stats
+    'Bin Cart Allocation': 'Bin Cart Allocation',
+    'TOTAL': 'TOTAL',
+    'SCANNED': 'SCANNED',
+    'PACKED': 'PACKED',
+    'PENDING': 'PENDING',
+    'REVISED': 'REVISED',
+    'CANCELLED': 'CANCELLED',
+    'BINNED': 'BINNED',
+    'VOID': 'VOID',
+    'ORD': 'ORD',
+    'PUT': 'PUT',
+    'DIF': 'DIF',
+    'STAT': 'STAT',
+
+    // Modals & Forms
+    'Duplicate Item': 'Duplicate Item',
+    'This item was already scanned': 'This item was already scanned',
+    'Edit Quantity': 'Edit Quantity',
+    'Cancel Item': 'Cancel Item',
+    'Add Duplicate Move': 'Add Duplicate Move',
+    'Enter cancellation remarks...': 'Enter cancellation remarks...',
   },
   hi: {
-    // General & Navigation
-    'app_title': 'WMS पैकिंग एवं पुटअवे',
-    'language': 'भाषा',
-    'english': 'English',
-    'hindi': 'हिंदी (Hindi)',
-    'switch_language': 'भाषा चुनें (Language)',
-    'switch_language_desc': 'ऐप की इंटरफेस भाषा बदलें (English / हिंदी)',
-    'sign_out': 'साइन आउट',
-    'sign_out_desc': 'क्या आप अपना सत्र समाप्त करना चाहते हैं?',
-    'settings': 'सेटिंग्स',
-    'terminal_settings': 'टर्मिनल सेटिंग्स',
-    'cancel': 'रद्द करें',
-    'confirm': 'पुष्टि करें',
-    'done': 'संपन्न',
-    'submit': 'जमा करें',
-    'save': 'सहेजें',
+    // Navigation & Headers
+    'WMS Packing': 'WMS पैकिंग',
+    'Putaway Scanning': 'पुटअवे स्कैनिंग',
+    'Container Packing': 'कंटेनर पैकिंग',
+    'Inventory': 'इन्वेंटरी',
+    'Operations': 'ऑपरेशन्स',
+    'Dashboard': 'डैशबोर्ड',
+    'Settings': 'सेटिंग्स',
+    'Terminal Settings': 'टर्मिनल सेटिंग्स',
+    'Sign Out': 'साइन आउट',
+    'Language': 'भाषा',
+    'English': 'English',
+    'Hindi': 'हिंदी',
+    'Register': 'पंजीकरण',
+    'Scan': 'स्कैन',
+    'Change': 'बदलें',
+    'Back': 'वापस',
+    'Submit': 'जमा करें',
+    'Save': 'सहेजें',
+    'Cancel': 'रद्द करें',
+    'Confirm': 'पुष्टि करें',
 
-    // Hardware Scanner & Receivers
-    'hardware_scanner': 'हार्डवेयर स्कैनर',
-    'tap_to_focus': 'फ़ोकस के लिए टैप करें',
-    'scanner_focused': 'स्कैनर सक्रिय है',
-    'ready_for_scan': 'लेजर बारकोड स्कैन के लिए तैयार',
-    'tap_to_focus_sub': 'स्कैनर फ़ोकस करने के लिए टैप करें',
-    'ready_to_scan_sku': '● स्कैनर सक्रिय — SKU स्कैन करें...',
-    'processing_barcode': 'बारकोड प्रोसेस हो रहा है...',
-    'scanned': 'स्कैन किया गया',
-    'revised': 'संशोधित',
-    'cancelled': 'रद्द किया गया',
-    'binned': 'बिन में रखा',
+    // Scanner & Cards
+    'Hardware Scanner': 'हार्डवेयर स्कैनर',
+    'TAP TO FOCUS': 'फ़ोकस के लिए टैप करें',
+    'SCANNER FOCUSED': 'स्कैनर सक्रिय है',
+    'Ready for laser barcode scan': 'लेजर बारकोड स्कैन के लिए तैयार',
+    'Tap to focus scanner': 'स्कैनर फ़ोकस करने के लिए टैप करें',
+    '● Scanner Active — Ready to scan SKU...': '● स्कैनर सक्रिय — SKU स्कैन करें...',
+    'Processing barcode scan...': 'बारकोड प्रोसेस हो रहा है...',
 
-    // Modules & Tabs
-    'wms_packing': 'WMS पैकिंग',
-    'putaway': 'पुटअवे स्कैनिंग',
-    'container_packing': 'कंटेनर पैकिंग',
+    // Cart & Stats
+    'Bin Cart Allocation': 'बिन कार्ट आवंटन',
+    'TOTAL': 'कुल',
+    'SCANNED': 'स्कैन किया',
+    'PACKED': 'पैक्ड',
+    'PENDING': 'लंबित',
+    'REVISED': 'संशोधित',
+    'CANCELLED': 'रद्द किया',
+    'BINNED': 'बिन में रखा',
+    'VOID': 'रद्द',
+    'ORD': 'ऑर्डर',
+    'PUT': 'पुट',
+    'DIF': 'अंतर',
+    'STAT': 'स्थिति',
+
+    // Modals & Forms
+    'Duplicate Item': 'डुप्लिकेट आइटम',
+    'This item was already scanned': 'यह आइटम पहले ही स्कैन किया जा चुका है',
+    'Edit Quantity': 'मात्रा बदलें',
+    'Cancel Item': 'आइटम रद्द करें',
+    'Add Duplicate Move': 'डुप्लिकेट जोड़ें',
+    'Enter cancellation remarks...': 'रद्दीकरण की टिप्पणी लिखें...',
+
+    // Lowercase & Common variation lookups
+    'wms packing': 'WMS पैकिंग',
+    'putaway scanning': 'पुटअवे स्कैनिंग',
+    'container packing': 'कंटेनर पैकिंग',
     'inventory': 'इन्वेंटरी',
     'operations': 'ऑपरेशन्स',
+    'dashboard': 'डैशबोर्ड',
+    'settings': 'सेटिंग्स',
+    'sign out': 'साइन आउट',
     'register': 'पंजीकरण',
     'scan': 'स्कैन',
+    'change': 'बदलें',
+    'back': 'वापस',
+    'total': 'कुल',
+    'scanned': 'स्कैन किया',
+    'packed': 'पैक्ड',
+    'pending': 'लंबित',
+    'revised': 'संशोधित',
+    'cancelled': 'रद्द किया',
   },
 };
 
@@ -101,7 +151,7 @@ const LanguageContext = createContext<LanguageContextType>({
   isHindi: false,
   setLanguage: () => {},
   toggleLanguage: () => {},
-  t: (key: string, fallback?: string) => fallback || key,
+  t: (keyOrText: string, fallback?: string) => fallback || keyOrText,
 });
 
 export const LanguageProvider = ({ children }: { children: ReactNode }) => {
@@ -136,12 +186,18 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     setLanguage(next);
   };
 
-  const t = (key: string, fallback?: string): string => {
-    const dict = translations[language];
-    if (dict && dict[key]) {
-      return dict[key];
+  const t = (keyOrText: string, fallback?: string): string => {
+    if (!keyOrText) return '';
+    if (language === 'en') {
+      return fallback || keyOrText;
     }
-    return fallback || key;
+
+    const clean = keyOrText.trim();
+    const dict = translations.hi;
+    if (dict[clean]) return dict[clean];
+    if (dict[clean.toLowerCase()]) return dict[clean.toLowerCase()];
+
+    return fallback || keyOrText;
   };
 
   return (

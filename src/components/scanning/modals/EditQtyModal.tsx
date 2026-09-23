@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../context/ThemeContext';
+import { useLanguage } from '../../../context/LanguageContext';
 import { borderRadius, monoFont } from '../../../constants/theme';
 
 interface EditQtyModalProps {
@@ -34,6 +35,7 @@ export const EditQtyModal: React.FC<EditQtyModalProps> = ({
   onConfirm,
 }) => {
   const { colors } = useTheme();
+  const { t } = useLanguage();
 
   return (
     <Modal
@@ -55,7 +57,7 @@ export const EditQtyModal: React.FC<EditQtyModalProps> = ({
                     <Ionicons name="pencil-outline" size={20} color={colors.primary} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Edit Packed Qty</Text>
+                    <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>{t('Edit Quantity', 'Edit Packed Qty')}</Text>
                     <Text style={[styles.modalSubtitle, { color: colors.textMuted }]}>
                       Item: {itemCode}
                     </Text>
@@ -69,7 +71,7 @@ export const EditQtyModal: React.FC<EditQtyModalProps> = ({
                   </TouchableOpacity>
                 </View>
 
-                <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>PACKED QUANTITY</Text>
+                <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>{t('PACKED QUANTITY', 'PACKED QUANTITY')}</Text>
                 <View style={[styles.stepperWrap, { backgroundColor: colors.surface3, borderColor: colors.primary }]}>
                   <TouchableOpacity
                     style={[styles.stepBtn, { backgroundColor: colors.surface }]}
@@ -102,9 +104,9 @@ export const EditQtyModal: React.FC<EditQtyModalProps> = ({
 
                 {requestedQty !== undefined && (
                   <Text style={[styles.stepperSubtext, { color: colors.textMuted }]}>
-                    DO Qty: <Text style={{ color: colors.primary }}>{Math.floor(requestedQty)}</Text>
+                    {t('DO Qty', 'DO Qty')}: <Text style={{ color: colors.primary }}>{Math.floor(requestedQty)}</Text>
                     {parseInt(value, 10) !== Math.floor(requestedQty) && (
-                      <Text style={{ color: colors.violet }}> · Will be marked REVISED</Text>
+                      <Text style={{ color: colors.violet }}> · {t('Will be marked REVISED', 'Will be marked REVISED')}</Text>
                     )}
                   </Text>
                 )}
@@ -114,14 +116,14 @@ export const EditQtyModal: React.FC<EditQtyModalProps> = ({
                     style={[styles.modalCancelBtn, { backgroundColor: colors.surface3, borderColor: colors.border }]}
                     onPress={onClose}
                   >
-                    <Text style={[styles.modalCancelBtnText, { color: colors.textSecondary }]}>Cancel</Text>
+                    <Text style={[styles.modalCancelBtnText, { color: colors.textSecondary }]}>{t('Cancel', 'Cancel')}</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
                     style={[styles.modalConfirmBtn, { backgroundColor: colors.primary }]}
                     onPress={onConfirm}
                   >
-                    <Text style={[styles.modalConfirmBtnText, { color: '#0B0F14' }]}>Update</Text>
+                    <Text style={[styles.modalConfirmBtnText, { color: '#0B0F14' }]}>{t('Update Qty', 'Update')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
