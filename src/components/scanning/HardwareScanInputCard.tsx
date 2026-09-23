@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { borderRadius, monoFont } from '../../constants/theme';
 
 interface HardwareScanInputCardProps {
@@ -32,10 +33,10 @@ export const HardwareScanInputCard: React.FC<HardwareScanInputCardProps> = ({
   itemCode,
   inputFocused,
   scanning,
-  title = 'Hardware Laser Scanner Receiver',
+  title,
   subtitle,
-  placeholderFocused = '● Scanner Active — Ready to scan barcode...',
-  placeholderBlurred = 'Tap to focus scanner...',
+  placeholderFocused,
+  placeholderBlurred,
   accentColor,
   onChangeText,
   onSubmitEditing,
@@ -43,7 +44,12 @@ export const HardwareScanInputCard: React.FC<HardwareScanInputCardProps> = ({
   onBlur,
 }) => {
   const { colors, isDark } = useTheme();
+  const { t } = useLanguage();
   const themeAccent = accentColor || colors.primary;
+
+  const resolvedTitle = title || t('hardware_scanner', 'Hardware Scanner');
+  const resolvedFocusedPlaceholder = placeholderFocused || t('ready_to_scan_sku', '● Scanner Active — Ready to scan SKU...');
+  const resolvedBlurredPlaceholder = placeholderBlurred || t('tap_to_focus_sub', 'Tap to focus scanner...');
 
   return (
     <TouchableOpacity
@@ -66,7 +72,7 @@ export const HardwareScanInputCard: React.FC<HardwareScanInputCardProps> = ({
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
             <Text style={[styles.scanCardTitle, { color: colors.textPrimary }]} numberOfLines={1}>
-              {title}
+              {resolvedTitle}
             </Text>
             <View
               style={[
@@ -89,7 +95,7 @@ export const HardwareScanInputCard: React.FC<HardwareScanInputCardProps> = ({
                   { color: inputFocused ? colors.emerald : colors.textMuted },
                 ]}
               >
-                {inputFocused ? 'SCANNER FOCUSED' : 'TAP TO FOCUS'}
+                {inputFocused ? t('scanner_focused', 'SCANNER FOCUSED') : t('tap_to_focus', 'TAP TO FOCUS')}
               </Text>
             </View>
           </View>

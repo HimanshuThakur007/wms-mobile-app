@@ -4,6 +4,7 @@ import { useRouter, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { LanguageToggle } from './LanguageToggle';
 
 interface HeaderActionsProps {
   showSettings?: boolean;
@@ -41,6 +42,7 @@ export const HeaderActions: React.FC<HeaderActionsProps> = ({
 
   return (
     <View style={styles.container}>
+      <LanguageToggle />
       {showSettings && !isSettings && (
         <TouchableOpacity
           style={[

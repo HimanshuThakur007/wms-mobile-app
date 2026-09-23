@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
 import { useTheme } from '../../src/context/ThemeContext';
+import { useLanguage } from '../../src/context/LanguageContext';
 import { BrandLogo } from '../../src/components/common/BrandLogo';
 import { HeaderActions } from '../../src/components/common/HeaderActions';
 import { borderRadius, spacing } from '../../src/constants/theme';
@@ -25,6 +26,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
   const { colors, isDark, isSystemTheme, toggleTheme, useSystemTheme } = useTheme();
+  const { isHindi, toggleLanguage, t } = useLanguage();
 
   const [offlineSync, setOfflineSync] = useState(true);
   const [hapticFeedback, setHapticFeedback] = useState(true);
@@ -145,6 +147,30 @@ export default function SettingsScreen() {
                 }
               }}
               trackColor={{ false: colors.surface3, true: colors.primary }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+        </View>
+
+        {/* Language & Localization Section */}
+        <Text style={[styles.sectionHeader, { color: colors.textMuted }]}>LANGUAGE & LOCALIZATION</Text>
+        <View style={[styles.settingsGroup, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={styles.settingRow}>
+            <View style={styles.settingLabelRow}>
+              <Ionicons name="language-outline" size={18} color={colors.violet} />
+              <View>
+                <Text style={[styles.settingTitle, { color: colors.textPrimary }]}>
+                  {isHindi ? 'भाषा: हिंदी (Hindi)' : 'Language: English'}
+                </Text>
+                <Text style={[styles.settingDesc, { color: colors.textMuted }]}>
+                  {isHindi ? 'ऐप की इंटरफेस भाषा हिंदी में सेट है' : 'App display language is currently set to English'}
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={isHindi}
+              onValueChange={toggleLanguage}
+              trackColor={{ false: colors.surface3, true: colors.violet }}
               thumbColor="#FFFFFF"
             />
           </View>
