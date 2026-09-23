@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "wmsapp",
+    "slug": "wmsapp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/logo1.png",
+    "userInterfaceStyle": "light",
+    "scheme": "wmsapp",
+    "splash": {
+      "image": "./assets/logo1.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F172A"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.market99.wmsapp",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/logo1.png",
+        "backgroundColor": "#0F172A"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/logo1.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow wmsapp to access camera for barcode and SKU scanning."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
