@@ -33,6 +33,10 @@ import {
 import { CancelItemModal } from '../../../src/components/scanning/modals/CancelItemModal';
 import { EditQtyModal } from '../../../src/components/scanning/modals/EditQtyModal';
 import { DuplicateItemModal } from '../../../src/components/scanning/modals/DuplicateItemModal';
+import {
+  PutawayPendingItemsModal,
+  PutawayPendingItem,
+} from '../../../src/components/scanning/modals/PutawayPendingItemsModal';
 import { HardwareScanInputCard } from '../../../src/components/scanning/HardwareScanInputCard';
 import { borderRadius, spacing, monoFont } from '../../../src/constants/theme';
 
@@ -118,6 +122,8 @@ export default function PutawayScanningScreen() {
     balance_qty: number;
   } | null>(null);
   const [duplicateQty, setDuplicateQty] = useState('1');
+
+  const [pendingModalVisible, setPendingModalVisible] = useState(false);
 
   // Pre-load local storage data & restore saved in-progress scanned items for this GRN
   useEffect(() => {
@@ -551,6 +557,40 @@ export default function PutawayScanningScreen() {
       totalAssignedUnits,
     };
   }, [cachedGrnItems, activeItems, totalUnits]);
+
+  const pendingItemsList = useMemo<PutawayPendingItem[]>(() => {
+    if (cachedGrnItems.length === 0) return [];
+
+    const scannedQtyMap = new Map<string, number>();
+    activeItems.forEach((it) => {
+      const code = String(it.itemcode || '').trim().toLowerCase();
+      scannedQtyMap.set(code, (scannedQtyMap.get(code) || 0) + it.packedqty);
+    });
+
+    const list: PutawayPendingItem[] = [];
+
+    cachedGrnItems.forEach((item) => {
+      const code = String(item.itemcode || item.itemCode || item.item || '').trim();
+      const name = String(item.itemname || item.itemDesc || item.item_description || code).trim();
+      const dept = String(item.department || '').trim();
+      const reqQty = Number(item.orderedQty ?? item.requested_quantity ?? item.qty ?? 1) || 1;
+      const binned = scannedQtyMap.get(code.toLowerCase()) || 0;
+      const pending = Math.max(0, reqQty - binned);
+
+      if (pending > 0) {
+        list.push({
+          itemcode: code,
+          itemname: name,
+          department: dept,
+          orderedQty: reqQty,
+          binnedQty: binned,
+          pendingQty: pending,
+        });
+      }
+    });
+
+    return list;
+  }, [cachedGrnItems, activeItems]);
 
   const handleSubmitPutaway = () => {
     if (activeItems.length === 0) {
@@ -1021,10 +1061,14 @@ export default function PutawayScanningScreen() {
               <Text style={[styles.statBoxNum, { color: colors.emerald }]}>{totalUnits}</Text>
               <Text style={[styles.statBoxLabel, { color: colors.textMuted }]}>{t('UNITS BINNED')}</Text>
             </View>
-            <View style={[styles.statBox, { backgroundColor: colors.amberMuted, borderColor: `${colors.amber}50`, borderWidth: 1 }]}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => setPendingModalVisible(true)}
+              style={[styles.statBox, { backgroundColor: colors.amberMuted, borderColor: `${colors.amber}50`, borderWidth: 1 }]}
+            >
               <Text style={[styles.statBoxNum, { color: colors.amber }]}>{pendingSummary.pendingLines}</Text>
               <Text style={[styles.statBoxLabel, { color: colors.amber }]}>{t('PENDING ITEMS')}</Text>
-            </View>
+            </TouchableOpacity>
             <View style={[styles.statBox, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
               <Text style={[styles.statBoxNum, { color: colors.primary }]}>1</Text>
               <Text style={[styles.statBoxLabel, { color: colors.textMuted }]}>{t('GRN LINKED')}</Text>
@@ -1056,6 +1100,15 @@ export default function PutawayScanningScreen() {
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      {/* PENDING ITEMS LIST MODAL */}
+      <PutawayPendingItemsModal
+        visible={pendingModalVisible}
+        grnNumber={activeGrn}
+        binLocation={binLocation}
+        pendingItems={pendingItemsList}
+        onClose={() => setPendingModalVisible(false)}
+      />
 
       {/* DUPLICATE MODAL */}
       <DuplicateItemModal
