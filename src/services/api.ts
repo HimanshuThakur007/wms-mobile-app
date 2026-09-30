@@ -35,6 +35,8 @@ export const BIN_MASTER_PHP_URL =
   "https://market99.tech/tmp/ynex/wms_api/get_bin_master.php";
 export const SUBMIT_GRN_PHP_URL =
   "https://market99.tech/tmp/ynex/wms_api/submit_grn.php";
+export const SAVE_GRN_PHP_URL =
+  "https://market99.tech/tmp/ynex/wms_api/save_grn.php";
 
 export type { PutawayGrnItem, PutawayGrnPayload } from "./localScanningCache";
 
@@ -624,6 +626,72 @@ export async function submitGrn(params: {
   const res = await parseApiResponse(response, "SUBMIT GRN");
   console.log("==============================================");
   console.log("SUBMIT GRN API RESPONSE:", JSON.stringify(res, null, 2));
+  console.log("==============================================");
+
+  return res;
+}
+
+/**
+ * Save GRN Putaway Item API
+ * Endpoint: https://market99.tech/tmp/ynex/wms_api/save_grn.php
+ * Request Body:
+ * {
+ *   "grn": "GRN-3218",
+ *   "department": ["HEALTH & BEAUTY", "STATIONERY"],
+ *   "vouchdate": "2026-08-07",
+ *   "bin_code": "G1",
+ *   "item_code": "MM00014214",
+ *   "qty": 10,
+ *   "userid": "6000"
+ * }
+ */
+export async function saveGrn(params: {
+  grn: string;
+  department: string[];
+  vouchdate: string;
+  bin_code: string;
+  item_code: string;
+  qty: number;
+  userid: string | number;
+}): Promise<ApiResponse> {
+  const cleanGrn = String(params.grn || "").trim();
+  const deptArray = Array.isArray(params.department)
+    ? params.department.map((d) => String(d).trim()).filter(Boolean)
+    : typeof params.department === "string"
+    ? [String(params.department).trim()]
+    : [];
+  const cleanVouchDate = String(params.vouchdate || "").trim();
+  const cleanBinCode = String(params.bin_code || "").trim();
+  const cleanItemCode = String(params.item_code || "").trim();
+  const numQty = Number(params.qty) || 0;
+  const userIdStr = String(params.userid ?? "6000").trim();
+
+  const body = {
+    grn: cleanGrn,
+    department: deptArray,
+    vouchdate: cleanVouchDate,
+    bin_code: cleanBinCode,
+    item_code: cleanItemCode,
+    qty: numQty,
+    userid: userIdStr,
+  };
+
+  console.log("==============================================");
+  console.log("SAVE GRN API REQUEST:", JSON.stringify(body, null, 2));
+  console.log("==============================================");
+
+  const response = await fetch(SAVE_GRN_PHP_URL, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  const res = await parseApiResponse(response, "SAVE GRN");
+  console.log("==============================================");
+  console.log("SAVE GRN API RESPONSE:", JSON.stringify(res, null, 2));
   console.log("==============================================");
 
   return res;

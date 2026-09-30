@@ -27,6 +27,7 @@ import {
   loadInProgressScannedItems,
   clearInProgressScannedItems,
   submitGrn,
+  saveGrn,
   PutawayGrnItem,
 } from '../../../src/services/api';
 import { CancelItemModal } from '../../../src/components/scanning/modals/CancelItemModal';
@@ -576,15 +577,37 @@ export default function PutawayScanningScreen() {
                   ? grnDepartmentParam.split(',').map((d) => d.trim()).filter(Boolean)
                   : [];
 
-              const payload = {
+              const userIdStr = String(user?.id || 6000);
+
+              // 1. Internally call save_grn.php for each scanned item before submitting
+              console.log(`[PutawayScanning] Executing save_grn.php calls for ${activeItems.length} scanned items...`);
+              for (const item of activeItems) {
+                if (item.packedqty > 0) {
+                  const savePayload = {
+                    grn: activeGrn,
+                    department: deptsToSubmit,
+                    vouchdate: vouchDateParam,
+                    bin_code: binLocation,
+                    item_code: item.itemcode,
+                    qty: item.packedqty,
+                    userid: userIdStr,
+                  };
+                  console.log(`[PutawayScanning] Saving item ${item.itemcode} via save_grn.php...`, savePayload);
+                  const saveRes = await saveGrn(savePayload);
+                  console.log(`[PutawayScanning] save_grn.php response for ${item.itemcode}:`, saveRes);
+                }
+              }
+
+              // 2. Call submit_grn.php
+              const submitPayload = {
                 grn: activeGrn,
                 department: deptsToSubmit,
                 vouchdate: vouchDateParam,
               };
 
-              console.log('[PutawayScanning] Submitting putaway GRN payload:', payload);
+              console.log('[PutawayScanning] Submitting putaway GRN payload via submit_grn.php:', submitPayload);
 
-              const res = await submitGrn(payload);
+              const res = await submitGrn(submitPayload);
               console.log('[PutawayScanning] Submit GRN API Response:', res);
 
               await clearInProgressScannedItems(activeGrn);
