@@ -514,8 +514,9 @@ export async function getPutawayUserAssignments(
   }
 
   const res = await parseApiResponse(response, "PUTAWAY USER ASSIGNMENTS");
+  const count = Array.isArray(res?.data) ? res.data.length : (res?.count ?? 0);
   console.log("==============================================");
-  console.log("PUTAWAY USER API RESPONSE:", JSON.stringify(res, null, 2));
+  console.log("PUTAWAY USER API RESPONSE: Count =", count);
   console.log("==============================================");
 
   return res;
