@@ -25,13 +25,16 @@ export {
 
 export const LOGIN_API_URL = "https://market99.tech/tmp/ynex/wms_api/login.php";
 export const WMS_API_URL = "https://market99.tech/tmp/ynex/wms_api/wms_api.php";
-export const PUTAWAY_USER_API_URL = "https://market99.tech/tmp/ynex/wms_api/putaway_user";
-export const PUTAWAY_USER_PHP_URL = "https://market99.tech/tmp/ynex/wms_api/putaway_user.php";
-export const BIN_MASTER_API_URL = "https://market99.tech/tmp/ynex/wms_api/get_bin_master";
-export const BIN_MASTER_PHP_URL = "https://market99.tech/tmp/ynex/wms_api/get_bin_master.php";
-export const PENDING_GRN_ITEMS_API_URL = "https://market99.tech/tmp/ynex/wms_api/pending_grn_items";
-export const PENDING_GRN_ITEMS_PHP_URL = "https://market99.tech/tmp/ynex/wms_api/pending_grn_items.php";
-export const SUBMIT_GRN_PHP_URL = "https://market99.tech/tmp/ynex/wms_api/submit_grn.php";
+export const PUTAWAY_USER_API_URL =
+  "https://market99.tech/tmp/ynex/wms_api/putaway_user";
+export const PUTAWAY_USER_PHP_URL =
+  "https://market99.tech/tmp/ynex/wms_api/putaway_user.php";
+export const BIN_MASTER_API_URL =
+  "https://market99.tech/tmp/ynex/wms_api/get_bin_master";
+export const BIN_MASTER_PHP_URL =
+  "https://market99.tech/tmp/ynex/wms_api/get_bin_master.php";
+export const SUBMIT_GRN_PHP_URL =
+  "https://market99.tech/tmp/ynex/wms_api/submit_grn.php";
 
 export type { PutawayGrnItem, PutawayGrnPayload } from "./localScanningCache";
 
@@ -479,7 +482,10 @@ export async function getPutawayUserAssignments(
       body: postBody,
     });
   } catch (err: any) {
-    console.log("Primary putaway_user endpoint failed, trying .php...", err?.message);
+    console.log(
+      "Primary putaway_user endpoint failed, trying .php...",
+      err?.message,
+    );
     try {
       response = await fetch(PUTAWAY_USER_PHP_URL, {
         method: "POST",
@@ -490,7 +496,8 @@ export async function getPutawayUserAssignments(
       console.error("Both putaway_user endpoints failed:", err2?.message);
       return {
         status: false,
-        message: err2?.message || "Failed to connect to putaway assignments endpoint",
+        message:
+          err2?.message || "Failed to connect to putaway assignments endpoint",
         data: [],
       };
     }
@@ -515,8 +522,10 @@ export async function getPutawayUserAssignments(
 /**
  * Validate bin location against bin master API
  */
-export async function validateBinMaster(binNumber: string): Promise<ApiResponse> {
-  const cleanBin = String(binNumber || '').trim();
+export async function validateBinMaster(
+  binNumber: string,
+): Promise<ApiResponse> {
+  const cleanBin = String(binNumber || "").trim();
   const postBody = JSON.stringify({ bin_number: cleanBin });
 
   console.log("==============================================");
@@ -536,7 +545,10 @@ export async function validateBinMaster(binNumber: string): Promise<ApiResponse>
       body: postBody,
     });
   } catch (err: any) {
-    console.log("Primary get_bin_master endpoint failed, trying .php...", err?.message);
+    console.log(
+      "Primary get_bin_master endpoint failed, trying .php...",
+      err?.message,
+    );
     try {
       response = await fetch(BIN_MASTER_PHP_URL, {
         method: "POST",
@@ -586,8 +598,8 @@ export async function submitGrn(params: {
   const deptArray = Array.isArray(params.department)
     ? params.department.map((d) => String(d).trim()).filter(Boolean)
     : typeof params.department === "string"
-    ? [String(params.department).trim()]
-    : [];
+      ? [String(params.department).trim()]
+      : [];
   const cleanVouchDate = String(params.vouchdate || "").trim();
 
   const body = {
@@ -616,5 +628,3 @@ export async function submitGrn(params: {
 
   return res;
 }
-
-

@@ -334,6 +334,17 @@ export default function PutawayScanningScreen() {
       const resolvedReqQty = existingRows[0].requested_quantity || reqQty;
       const balanceQty = Math.max(0, resolvedReqQty - alreadyPacked);
 
+      if (alreadyPacked >= resolvedReqQty) {
+        Alert.alert(
+          t('Limit Reached'),
+          isHindi
+            ? `आइटम "${targetItemCode}" के लिए ऑर्डर मात्रा ${resolvedReqQty} की सीमा पूरी हो चुकी है। और इकाइयां नहीं जोड़ी जा सकतीं।`
+            : `Cannot allocate more than ordered quantity (${resolvedReqQty}) for SKU ${targetItemCode}. Already allocated: ${alreadyPacked}.`
+        );
+        clearAndRefocus();
+        return;
+      }
+
       setDuplicateItem({
         itemcode: targetItemCode,
         itemname: itemName,
@@ -349,7 +360,9 @@ export default function PutawayScanningScreen() {
       return;
     }
 
-    // Add new scanned putaway item populated from local cache
+    // Add new scanned putaway item populated from local cache (capped at reqQty)
+    const initialPackedQty = Math.min(reqQty, reqQty);
+
     const newItem: PutawayScannedItem = {
       id: Date.now(),
       itemcode: targetItemCode,
@@ -357,7 +370,7 @@ export default function PutawayScanningScreen() {
       grn_number: activeGrn,
       bin_location: binLocation,
       requested_quantity: reqQty,
-      packedqty: reqQty,
+      packedqty: initialPackedQty,
       department: itemDept,
       itemstatus: 'scanned',
       scanned_at: new Date().toISOString(),
@@ -405,6 +418,17 @@ export default function PutawayScanningScreen() {
       return;
     }
 
+    const maxAllowedRemaining = Math.max(0, duplicateItem.requested_quantity - duplicateItem.already_packed);
+    if (qty > maxAllowedRemaining) {
+      Alert.alert(
+        t('Quantity Exceeds Limit'),
+        isHindi
+          ? `मात्रा ऑर्डर मात्रा (${duplicateItem.requested_quantity}) से अधिक नहीं हो सकती। अधिकतम शेष स्वीकार्य ${maxAllowedRemaining} इकाइयां हैं।`
+          : `Quantity cannot exceed ordered quantity (${duplicateItem.requested_quantity}). Maximum remaining allowed is ${maxAllowedRemaining} units.`
+      );
+      return;
+    }
+
     const newItem: PutawayScannedItem = {
       id: Date.now(),
       itemcode: duplicateItem.itemcode,
@@ -438,6 +462,22 @@ export default function PutawayScanningScreen() {
     const qty = parseInt(editQtyValue, 10);
     if (isNaN(qty) || qty < 0) {
       Alert.alert(t('Invalid Quantity'), t('Please enter a valid number.'));
+      return;
+    }
+
+    const targetCode = editQtyItem.itemcode.trim().toLowerCase();
+    const otherRowsPacked = allScannedItems
+      .filter((it) => it.id !== editQtyItem.id && it.itemstatus !== 'cancelled' && it.itemcode.trim().toLowerCase() === targetCode)
+      .reduce((sum, it) => sum + Number(it.packedqty || 0), 0);
+
+    const maxAllowedForLine = Math.max(0, editQtyItem.requested_quantity - otherRowsPacked);
+    if (qty > maxAllowedForLine) {
+      Alert.alert(
+        t('Quantity Exceeds Limit'),
+        isHindi
+          ? `मात्रा ऑर्डर मात्रा (${editQtyItem.requested_quantity}) से अधिक नहीं हो सकती। इस लाइन के लिए अधिकतम स्वीकार्य ${maxAllowedForLine} इकाइयां हैं।`
+          : `Quantity cannot exceed ordered quantity (${editQtyItem.requested_quantity}). Maximum allowed for this line is ${maxAllowedForLine} units.`
+      );
       return;
     }
 
