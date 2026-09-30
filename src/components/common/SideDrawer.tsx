@@ -15,6 +15,7 @@ import { useRouter, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { ThemeToggle } from './ThemeToggle';
 import { BrandLogo } from './BrandLogo';
 import { borderRadius, spacing } from '../../constants/theme';
@@ -33,7 +34,7 @@ interface DrawerMenuItem {
   action?: () => void;
 }
 
-const monoFont = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
+const monoFont = Platform.select({ ios: 'System', android: 'sans-serif', default: 'System' });
 
 export const SideDrawer: React.FC<SideDrawerProps> = ({ visible, onClose }) => {
   const insets = useSafeAreaInsets();
@@ -41,6 +42,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ visible, onClose }) => {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const { colors } = useTheme();
+  const { t } = useLanguage();
 
   const [wmsExpanded, setWmsExpanded] = useState(true);
   const [containerExpanded, setContainerExpanded] = useState(true);
@@ -59,12 +61,12 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ visible, onClose }) => {
   const handleLogout = () => {
     onClose();
     Alert.alert(
-      'Sign Out',
-      'Are you sure you want to end your terminal session?',
+      t('Sign Out'),
+      t('Are you sure you want to end your terminal session?'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('Cancel'), style: 'cancel' },
         {
-          text: 'Sign Out',
+          text: t('Sign Out'),
           style: 'destructive',
           onPress: () => {
             logout();
@@ -360,7 +362,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ visible, onClose }) => {
                     <Ionicons name="boat" size={14} color={colors.amber} />
                   </View>
                   <Text style={[styles.packingGroupTitle, { color: colors.textPrimary }]}>
-                    Container Packing
+                    {t('Container Packing')}
                   </Text>
                 </View>
                 <Ionicons
@@ -400,11 +402,11 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ visible, onClose }) => {
                           },
                         ]}
                       >
-                        Registration
+                        {t('Registration')}
                       </Text>
                     </View>
                     <View style={[styles.subBadge, { backgroundColor: colors.amberMuted }]}>
-                      <Text style={[styles.subBadgeText, { color: colors.amber }]}>Seal</Text>
+                      <Text style={[styles.subBadgeText, { color: colors.amber }]}>{t('Seal')}</Text>
                     </View>
                   </TouchableOpacity>
 
@@ -436,11 +438,11 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ visible, onClose }) => {
                           },
                         ]}
                       >
-                        Scanning
+                        {t('Scanning')}
                       </Text>
                     </View>
                     <View style={[styles.subBadge, { backgroundColor: colors.amberMuted }]}>
-                      <Text style={[styles.subBadgeText, { color: colors.amber }]}>Pallet</Text>
+                      <Text style={[styles.subBadgeText, { color: colors.amber }]}>{t('Pallet')}</Text>
                     </View>
                   </TouchableOpacity>
                 </View>

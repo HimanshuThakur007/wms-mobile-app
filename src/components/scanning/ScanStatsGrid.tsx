@@ -20,7 +20,7 @@ export const ScanStatsGrid: React.FC<ScanStatsGridProps> = ({
   const { colors } = useTheme();
   const { t } = useLanguage();
 
-  const sectionTitle = title || t('PACKING STATISTICS & PROGRESS', 'PACKING STATISTICS & PROGRESS');
+  const sectionTitle = title ? t(title) : t('PACKING STATISTICS & PROGRESS');
 
   return (
     <View style={[styles.statsSection, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>

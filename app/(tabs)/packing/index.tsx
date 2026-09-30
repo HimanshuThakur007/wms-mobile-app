@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../src/context/ThemeContext';
+import { useLanguage } from '../../../src/context/LanguageContext';
 import { BrandLogo } from '../../../src/components/common/BrandLogo';
 import { HeaderActions } from '../../../src/components/common/HeaderActions';
 import { borderRadius, spacing } from '../../../src/constants/theme';
@@ -21,6 +22,7 @@ export default function PackingModulesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { colors } = useTheme();
+  const { t } = useLanguage();
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background, paddingTop: Math.max(insets.top, 16) }]}>
@@ -33,7 +35,7 @@ export default function PackingModulesScreen() {
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Ionicons name="chevron-back" size={18} color={colors.textSecondary} />
-            <Text style={[styles.backBtnText, { color: colors.textSecondary }]}>Back</Text>
+            <Text style={[styles.backBtnText, { color: colors.textSecondary }]}>{t('Back')}</Text>
           </TouchableOpacity>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <BrandLogo size={28} rounded />
@@ -44,11 +46,11 @@ export default function PackingModulesScreen() {
         <View style={styles.titleSection}>
           <View style={styles.badgeRow}>
             <View style={[styles.dot, { backgroundColor: colors.primary }]} />
-            <Text style={[styles.badgeText, { color: colors.textSecondary }]}>PACKING HUB</Text>
+            <Text style={[styles.badgeText, { color: colors.textSecondary }]}>{t('PACKING HUB')}</Text>
           </View>
-          <Text style={[styles.title, { color: colors.textPrimary }]}>Packing Modules</Text>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>{t('Packing Modules')}</Text>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            Select workflow module to begin registration or SKU scanning
+            {t('Select workflow module to begin registration or SKU scanning')}
           </Text>
         </View>
       </View>
@@ -74,23 +76,23 @@ export default function PackingModulesScreen() {
               <Ionicons name="cube" size={24} color={colors.primary} />
             </View>
             <View style={[styles.cardTag, { backgroundColor: colors.primaryMuted, borderColor: `${colors.primary}40` }]}>
-              <Text style={[styles.cardTagText, { color: colors.primary }]}>ACTIVE</Text>
+              <Text style={[styles.cardTagText, { color: colors.primary }]}>{t('ACTIVE')}</Text>
             </View>
           </View>
 
-          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>WMS Packing</Text>
+          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>{t('WMS Packing')}</Text>
           <Text style={[styles.cardDesc, { color: colors.textSecondary }]}>
-            Standard carton packing, document registration, department filter, and item verification
+            {t('Standard carton packing, document registration, department filter, and item verification')}
           </Text>
 
           <View style={[styles.metaRow, { borderTopColor: colors.border }]}>
             <View style={styles.metaCol}>
               <Text style={[styles.metaVal, { color: colors.primary }]}>2</Text>
-              <Text style={[styles.metaLabel, { color: colors.textMuted }]}>WORKFLOWS</Text>
+              <Text style={[styles.metaLabel, { color: colors.textMuted }]}>{t('WORKFLOWS')}</Text>
             </View>
             <View style={styles.metaCol}>
-              <Text style={[styles.metaVal, { color: colors.primary }]}>LIVE</Text>
-              <Text style={[styles.metaLabel, { color: colors.textMuted }]}>API SYNC</Text>
+              <Text style={[styles.metaVal, { color: colors.primary }]}>{t('LIVE')}</Text>
+              <Text style={[styles.metaLabel, { color: colors.textMuted }]}>{t('API SYNC')}</Text>
             </View>
             <Ionicons name="arrow-forward-circle" size={28} color={colors.primary} />
           </View>
@@ -113,23 +115,23 @@ export default function PackingModulesScreen() {
               <Ionicons name="boat" size={24} color={colors.amber} />
             </View>
             <View style={[styles.cardTag, { backgroundColor: colors.amberMuted, borderColor: `${colors.amber}40` }]}>
-              <Text style={[styles.cardTagText, { color: colors.amber }]}>PALLET / TIER</Text>
+              <Text style={[styles.cardTagText, { color: colors.amber }]}>{t('PALLET / TIER')}</Text>
             </View>
           </View>
 
-          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Container Packing</Text>
+          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>{t('Container Packing')}</Text>
           <Text style={[styles.cardDesc, { color: colors.textSecondary }]}>
-            Container seal registration, pallet tier stacking, master carton assignment, and load manifest
+            {t('Container seal registration, pallet tier stacking, master carton assignment, and load manifest')}
           </Text>
 
           <View style={[styles.metaRow, { borderTopColor: colors.border }]}>
             <View style={styles.metaCol}>
               <Text style={[styles.metaVal, { color: colors.amber }]}>2</Text>
-              <Text style={[styles.metaLabel, { color: colors.textMuted }]}>WORKFLOWS</Text>
+              <Text style={[styles.metaLabel, { color: colors.textMuted }]}>{t('WORKFLOWS')}</Text>
             </View>
             <View style={styles.metaCol}>
-              <Text style={[styles.metaVal, { color: colors.amber }]}>FREIGHT</Text>
-              <Text style={[styles.metaLabel, { color: colors.textMuted }]}>LOGISTICS</Text>
+              <Text style={[styles.metaVal, { color: colors.amber }]}>{t('FREIGHT')}</Text>
+              <Text style={[styles.metaLabel, { color: colors.textMuted }]}>{t('LOGISTICS')}</Text>
             </View>
             <Ionicons name="arrow-forward-circle" size={28} color={colors.amber} />
           </View>

@@ -9,14 +9,15 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../../src/context/AuthContext';
 import { useTheme } from '../../../src/context/ThemeContext';
-import { BrandLogo } from '../../../src/components/common/BrandLogo';
-import { HeaderActions } from '../../../src/components/common/HeaderActions';
+import { useLanguage } from '../../../src/context/LanguageContext';
+import { AppHeader } from '../../../src/components/common/AppHeader';
 import { GrnSelectSheet, GrnDocumentItem } from '../../../src/components/common/GrnSelectSheet';
 import { DataSyncModal } from '../../../src/components/common/DataSyncModal';
 import {
@@ -27,7 +28,7 @@ import {
 } from '../../../src/services/api';
 import { borderRadius, spacing } from '../../../src/constants/theme';
 
-const monoFont = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
+const monoFont = Platform.select({ ios: 'System', android: 'sans-serif', default: 'System' });
 
 const DEFAULT_GRNS: GrnDocumentItem[] = [
   {
@@ -47,6 +48,7 @@ export default function PutawayRegistrationScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { colors, isDark } = useTheme();
+  const { t } = useLanguage();
   const { user } = useAuth();
 
   const [loading, setLoading] = useState(false);
@@ -54,6 +56,7 @@ export default function PutawayRegistrationScreen() {
   const [statusMessage, setStatusMessage] = useState('');
   const [grnList, setGrnList] = useState<GrnDocumentItem[]>([]);
   const [selectedGrn, setSelectedGrn] = useState<GrnDocumentItem | null>(null);
+  const [selectedDepts, setSelectedDepts] = useState<string[]>([]);
   const [binLocation, setBinLocation] = useState('');
   const [grnSheetOpen, setGrnSheetOpen] = useState(false);
 
@@ -66,6 +69,20 @@ export default function PutawayRegistrationScreen() {
 
   useEffect(() => {
     loadGrnDocuments();
+  }, [user?.id]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadGrnDocuments();
+    }, [user?.id])
+  );
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    await loadGrnDocuments();
+    setRefreshing(false);
   }, [user?.id]);
 
   const loadGrnDocuments = async () => {
@@ -152,20 +169,60 @@ export default function PutawayRegistrationScreen() {
 
   const handleSelectGrn = (grnNum: string) => {
     if (selectedGrn?.grn_number === grnNum) {
-      setSelectedGrn(null);
-    } else {
+      // In single-select putaway, tapping an already selected GRN card keeps it selected (prevents accidental deselection)
+      return;
+    }
+    const found = grnList.find((g) => g.grn_number === grnNum);
+    if (found) {
+      setSelectedGrn(found);
+      const depts = found.departments && found.departments.length > 0
+        ? [...found.departments]
+        : found.department
+        ? found.department.split(',').map((s) => s.trim()).filter(Boolean)
+        : [];
+      setSelectedDepts(depts);
+    }
+  };
+
+  const handleToggleDept = (grnNum: string, deptName: string) => {
+    if (selectedGrn?.grn_number !== grnNum) {
       const found = grnList.find((g) => g.grn_number === grnNum);
       if (found) {
         setSelectedGrn(found);
+        setSelectedDepts([deptName]);
       }
+      return;
+    }
+
+    setSelectedDepts((prev) => {
+      if (prev.includes(deptName)) {
+        return prev.filter((d) => d !== deptName);
+      } else {
+        return [...prev, deptName];
+      }
+    });
+  };
+
+  const handleToggleAllDepts = () => {
+    if (!selectedGrn) return;
+    const allDepts = selectedGrn.departments && selectedGrn.departments.length > 0
+      ? selectedGrn.departments
+      : selectedGrn.department
+      ? selectedGrn.department.split(',').map((s) => s.trim()).filter(Boolean)
+      : [];
+
+    if (selectedDepts.length === allDepts.length) {
+      setSelectedDepts([]);
+    } else {
+      setSelectedDepts([...allDepts]);
     }
   };
 
   const handleProceedToScanning = async () => {
     if (!selectedGrn) {
       Alert.alert(
-        'Select GRN Document',
-        'Please select a GRN document to start putaway.'
+        t('Select GRN document'),
+        t('Please select a GRN document to start putaway.')
       );
       return;
     }
@@ -173,22 +230,22 @@ export default function PutawayRegistrationScreen() {
     const trimmedBin = binLocation.trim().toUpperCase();
     if (!trimmedBin) {
       Alert.alert(
-        'Target Bin Required',
-        'Please enter destination Bin location.'
+        t('Target Bin Required'),
+        t('Please enter destination Bin location.')
       );
       return;
     }
 
     try {
       setStartingPutaway(true);
-      setStatusMessage('Validating Bin Location...');
+      setStatusMessage(t('Validating Bin Location...'));
 
       // 1. Validate Bin against master API
       const res = await validateBinMaster(trimmedBin);
 
       if (!res || res.status !== true) {
         Alert.alert(
-          'Invalid Bin Location',
+          t('Invalid Bin Location'),
           res?.message || `Bin "${trimmedBin}" is not valid or not found in Bin Master.`
         );
         return;
@@ -198,7 +255,9 @@ export default function PutawayRegistrationScreen() {
       const binDept = String(binData?.department || '').trim();
 
       // 2. Open Data Sync Modal & fetch/cache GRN pending items locally into storage
-      const selectedDepts = selectedGrn.departments && selectedGrn.departments.length > 0
+      const activeDepts = selectedDepts.length > 0
+        ? selectedDepts
+        : selectedGrn.departments && selectedGrn.departments.length > 0
         ? selectedGrn.departments
         : selectedGrn.department
         ? selectedGrn.department.split(',').map((d) => d.trim()).filter(Boolean)
@@ -206,8 +265,16 @@ export default function PutawayRegistrationScreen() {
         ? [binDept]
         : [];
 
+      if (activeDepts.length === 0) {
+        Alert.alert(
+          t('Department Required'),
+          t('Please select at least one department for putaway.')
+        );
+        return;
+      }
+
       setSyncProgress(10);
-      setSyncStatusText('Connecting to WMS server...');
+      setSyncStatusText(t('Connecting to WMS server...'));
       setSyncItemCount(undefined);
       setSyncComplete(false);
       setSyncModalVisible(true);
@@ -217,7 +284,7 @@ export default function PutawayRegistrationScreen() {
           {
             grn_number: selectedGrn.grn_number,
             vouch_date: selectedGrn.date || '2026-06-17',
-            department: selectedDepts,
+            department: activeDepts,
           },
           (progress, statusText, count) => {
             setSyncProgress(progress);
@@ -242,8 +309,8 @@ export default function PutawayRegistrationScreen() {
             grn_number: selectedGrn.grn_number,
             vouch_date: selectedGrn.date || '',
             bill_no: selectedGrn.bill_no || '',
-            grn_department: selectedGrn.department || selectedDepts.join(', '),
-            grn_departments: selectedDepts.join(','),
+            grn_department: activeDepts.join(', '),
+            grn_departments: activeDepts.join(','),
             bin_location: trimmedBin,
             bin_department: binDept,
           },
@@ -253,8 +320,8 @@ export default function PutawayRegistrationScreen() {
       console.error('Putaway setup error:', err);
       setSyncModalVisible(false);
       Alert.alert(
-        'Setup Error',
-        err?.message || 'Unable to start putaway. Please check network and try again.'
+        t('Setup Error'),
+        err?.message || t('Unable to start putaway. Please check network and try again.')
       );
     } finally {
       setStartingPutaway(false);
@@ -263,28 +330,33 @@ export default function PutawayRegistrationScreen() {
   };
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background, paddingTop: Math.max(insets.top, 16) }]}>
-      {/* ── Top Header ─────────────────────────────────────────── */}
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <View style={styles.headerLeft}>
-          <BrandLogo size={32} rounded />
-          <View>
-            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
-              Putaway Setup
-            </Text>
-            <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
-              Inbound GRN & Bin Allocation
-            </Text>
-          </View>
-        </View>
-        <HeaderActions />
-      </View>
+    <View style={[styles.root, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      {/* Unified Header */}
+      <AppHeader
+        showBack
+        onBack={() => router.back()}
+        moduleTag={t('INBOUND PUTAWAY MODULE')}
+        moduleTagColor={colors.violet}
+        title={t('Putaway Setup')}
+        subtitle={t('Inbound GRN & Bin Allocation')}
+        showLogo
+        showActions
+        showLogout
+      />
 
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.violet}
+            colors={[colors.violet]}
+          />
+        }
       >
         {/* ── Hero Instructions Card ───────────────────────────── */}
         <View
@@ -301,10 +373,10 @@ export default function PutawayRegistrationScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>
-              Putaway Allocation Form
+              {t('Putaway Allocation Form')}
             </Text>
             <Text style={[styles.heroSub, { color: colors.textSecondary }]}>
-              Select inbound GRN document and assign destination Bin location for hardware laser scanning.
+              {t('Select inbound GRN document and assign destination Bin location for hardware laser scanning.')}
             </Text>
           </View>
         </View>
@@ -323,7 +395,7 @@ export default function PutawayRegistrationScreen() {
           <View style={styles.formGroup}>
             <View style={styles.fieldLabelRow}>
               <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
-                GRN DOCUMENT NUMBER <Text style={{ color: colors.red }}>*</Text>
+                {t('GRN DOCUMENT NUMBER')} <Text style={{ color: colors.red }}>*</Text>
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <TouchableOpacity
@@ -339,7 +411,7 @@ export default function PutawayRegistrationScreen() {
                   )}
                 </TouchableOpacity>
                 <View style={[styles.singleBadge, { backgroundColor: colors.violetMuted, borderColor: `${colors.violet}40` }]}>
-                  <Text style={[styles.singleBadgeText, { color: colors.violet }]}>Single-Select</Text>
+                  <Text style={[styles.singleBadgeText, { color: colors.violet }]}>{t('Single-Select')}</Text>
                 </View>
               </View>
             </View>
@@ -376,10 +448,10 @@ export default function PutawayRegistrationScreen() {
                   numberOfLines={1}
                 >
                   {loading
-                    ? 'Loading GRN assignments...'
+                    ? t('Loading GRN assignments...')
                     : selectedGrn
                     ? selectedGrn.grn_number
-                    : `Select GRN document (${grnList.length} available)...`}
+                    : `${t('Select GRN document')} (${grnList.length} ${t('available')})...`}
                 </Text>
               </View>
               <Ionicons name="chevron-down" size={16} color={colors.textSecondary} />
@@ -404,7 +476,10 @@ export default function PutawayRegistrationScreen() {
                       </Text>
                     </View>
                     <TouchableOpacity
-                      onPress={() => setSelectedGrn(null)}
+                      onPress={() => {
+                        setSelectedGrn(null);
+                        setSelectedDepts([]);
+                      }}
                       hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                     >
                       <Ionicons name="close-circle" size={18} color={colors.textMuted} />
@@ -415,7 +490,7 @@ export default function PutawayRegistrationScreen() {
                   <View style={styles.selectedGrnMetaRow}>
                     {selectedGrn.bill_no ? (
                       <View style={styles.detailItem}>
-                        <Text style={[styles.detailItemLabel, { color: colors.textMuted }]}>BILL NO</Text>
+                        <Text style={[styles.detailItemLabel, { color: colors.textMuted }]}>{t('BILL NO')}</Text>
                         <Text style={[styles.detailItemValue, { color: colors.textPrimary }]} numberOfLines={1}>
                           {selectedGrn.bill_no}
                         </Text>
@@ -424,7 +499,7 @@ export default function PutawayRegistrationScreen() {
 
                     {selectedGrn.date ? (
                       <View style={styles.detailItem}>
-                        <Text style={[styles.detailItemLabel, { color: colors.textMuted }]}>BILL / VOUCH DATE</Text>
+                        <Text style={[styles.detailItemLabel, { color: colors.textMuted }]}>{t('BILL / VOUCH DATE')}</Text>
                         <Text style={[styles.detailItemValue, { color: colors.textPrimary }]}>
                           {selectedGrn.date}
                         </Text>
@@ -432,27 +507,69 @@ export default function PutawayRegistrationScreen() {
                     ) : null}
                   </View>
 
-                  {/* Departments Section (Flex-wrapped chips) */}
+                  {/* Departments Section (Flex-wrapped interactive chips) */}
                   {depts.length > 0 && (
                     <View style={styles.selectedDeptsBox}>
-                      <Text style={[styles.detailItemLabel, { color: colors.textMuted }]}>
-                        {depts.length > 1 ? 'ASSIGNED DEPARTMENTS' : 'DEPARTMENT'}
-                      </Text>
-                      <View style={styles.selectedDeptChipsWrap}>
-                        {depts.map((dept, dIdx) => (
-                          <View
-                            key={`selected-dept-${dIdx}`}
-                            style={[
-                              styles.selectedDeptChip,
-                              { backgroundColor: colors.violetMuted, borderColor: `${colors.violet}40` },
-                            ]}
-                          >
-                            <Ionicons name="pricetag-outline" size={10} color={colors.violet} />
-                            <Text style={[styles.selectedDeptChipText, { color: colors.violet }]}>
-                              {dept}
+                      <View style={styles.deptHeaderRow}>
+                        <Text style={[styles.detailItemLabel, { color: colors.textMuted }]}>
+                          {t('SELECT DEPARTMENTS')} ({selectedDepts.length}/{depts.length})
+                        </Text>
+                        {depts.length > 1 && (
+                          <TouchableOpacity onPress={handleToggleAllDepts}>
+                            <Text style={[styles.selectAllLinkText, { color: colors.violet }]}>
+                              {selectedDepts.length === depts.length
+                                ? t('Deselect All')
+                                : t('Select All')}
                             </Text>
-                          </View>
-                        ))}
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                      <View style={styles.selectedDeptChipsWrap}>
+                        {depts.map((dept, dIdx) => {
+                          const isDeptSelected = selectedDepts.includes(dept);
+
+                          return (
+                            <TouchableOpacity
+                              key={`selected-dept-${dIdx}`}
+                              style={[
+                                styles.selectedDeptChip,
+                                {
+                                  backgroundColor: isDeptSelected
+                                    ? colors.violetMuted
+                                    : colors.surface3,
+                                  borderColor: isDeptSelected
+                                    ? `${colors.violet}60`
+                                    : colors.border,
+                                },
+                              ]}
+                              activeOpacity={0.7}
+                              onPress={() => handleToggleDept(selectedGrn.grn_number, dept)}
+                            >
+                              <View
+                                style={[
+                                  styles.smallCheckbox,
+                                  {
+                                    backgroundColor: isDeptSelected ? colors.violet : 'transparent',
+                                    borderColor: isDeptSelected ? colors.violet : colors.textMuted,
+                                  },
+                                ]}
+                              >
+                                {isDeptSelected && <Ionicons name="checkmark" size={9} color="#FFFFFF" />}
+                              </View>
+                              <Text
+                                style={[
+                                  styles.selectedDeptChipText,
+                                  {
+                                    color: isDeptSelected ? colors.violet : colors.textSecondary,
+                                    fontWeight: isDeptSelected ? '800' : '500',
+                                  },
+                                ]}
+                              >
+                                {dept}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
                       </View>
                     </View>
                   )}
@@ -468,11 +585,11 @@ export default function PutawayRegistrationScreen() {
           <View style={styles.formGroup}>
             <View style={styles.fieldLabelRow}>
               <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
-                DESTINATION BIN LOCATION <Text style={{ color: colors.red }}>*</Text>
+                {t('DESTINATION BIN LOCATION')} <Text style={{ color: colors.red }}>*</Text>
               </Text>
               {binLocation ? (
                 <View style={[styles.singleBadge, { backgroundColor: `${colors.emerald}18`, borderColor: `${colors.emerald}40` }]}>
-                  <Text style={[styles.singleBadgeText, { color: colors.emerald }]}>BIN SET</Text>
+                  <Text style={[styles.singleBadgeText, { color: colors.emerald }]}>{t('BIN SET')}</Text>
                 </View>
               ) : null}
             </View>
@@ -489,7 +606,7 @@ export default function PutawayRegistrationScreen() {
               <Ionicons name="location" size={18} color={binLocation ? colors.violet : colors.textMuted} />
               <TextInput
                 style={[styles.binTextInput, { color: colors.textPrimary }]}
-                placeholder="Enter destination Bin (e.g. G1, BIN-A1-01)..."
+                placeholder={t('Enter destination Bin (e.g. G1, BIN-A1-01)...')}
                 placeholderTextColor={colors.textMuted}
                 value={binLocation}
                 onChangeText={setBinLocation}
@@ -511,10 +628,10 @@ export default function PutawayRegistrationScreen() {
             styles.proceedBtn,
             {
               backgroundColor: colors.violet,
-              opacity: selectedGrn && binLocation.trim() && !startingPutaway ? 1 : 0.6,
+              opacity: selectedGrn && selectedDepts.length > 0 && binLocation.trim() && !startingPutaway ? 1 : 0.6,
             },
           ]}
-          disabled={!selectedGrn || !binLocation.trim() || startingPutaway}
+          disabled={!selectedGrn || selectedDepts.length === 0 || !binLocation.trim() || startingPutaway}
           activeOpacity={0.8}
           onPress={handleProceedToScanning}
         >
@@ -525,8 +642,8 @@ export default function PutawayRegistrationScreen() {
           )}
           <Text style={styles.proceedBtnText} numberOfLines={1} ellipsizeMode="tail">
             {startingPutaway
-              ? statusMessage || 'Preparing Putaway...'
-              : `Start Putaway (${selectedGrn?.grn_number || '1 GRN'})`}
+              ? statusMessage || t('Preparing Putaway...')
+              : `${t('Start Putaway')} (${selectedGrn?.grn_number || '1 GRN'})`}
           </Text>
           {!startingPutaway && <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />}
         </TouchableOpacity>
@@ -541,6 +658,8 @@ export default function PutawayRegistrationScreen() {
         onToggleGrn={handleSelectGrn}
         singleSelect={true}
         accentColor={colors.violet}
+        selectedDepts={selectedDepts}
+        onToggleDept={handleToggleDept}
       />
 
       {/* ── Putaway GRN Local Storage Data Sync Modal ─────────── */}
@@ -551,8 +670,8 @@ export default function PutawayRegistrationScreen() {
         statusText={syncStatusText}
         itemCount={syncItemCount}
         isComplete={syncComplete}
-        title="Syncing Inbound GRN Data"
-        completeTitle="GRN Items Sync Complete"
+        title={t('Syncing Inbound GRN Data')}
+        completeTitle={t('GRN Items Sync Complete')}
         accentColor={colors.violet}
       />
     </View>
@@ -711,6 +830,16 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: 2,
   },
+  deptHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  selectAllLinkText: {
+    fontSize: 10,
+    fontFamily: monoFont,
+    fontWeight: '800',
+  },
   selectedDeptChipsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -729,6 +858,14 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     fontFamily: monoFont,
     fontWeight: '800',
+  },
+  smallCheckbox: {
+    width: 13,
+    height: 13,
+    borderRadius: 3,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   formDivider: {
     height: 1,

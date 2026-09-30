@@ -7,29 +7,39 @@ import {
   TouchableOpacity,
   Platform,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
 import { useTheme } from '../../src/context/ThemeContext';
+import { useLanguage } from '../../src/context/LanguageContext';
 import { BrandLogo } from '../../src/components/common/BrandLogo';
 import { HeaderActions } from '../../src/components/common/HeaderActions';
 import { borderRadius, spacing } from '../../src/constants/theme';
 
-const monoFont = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
+const monoFont = Platform.select({ ios: 'System', android: 'sans-serif', default: 'System' });
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useAuth();
   const { colors } = useTheme();
+  const { t } = useLanguage();
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 800);
+  }, []);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good Morning';
-    if (hour < 17) return 'Good Afternoon';
-    return 'Good Evening';
+    if (hour < 12) return t('Good Morning');
+    if (hour < 17) return t('Good Afternoon');
+    return t('Good Evening');
   };
 
   const getFormattedDate = () => {
@@ -61,6 +71,14 @@ export default function HomeScreen() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
       >
         {/* ── Greeting Banner ─────────────────────────────── */}
         <View style={styles.greetingSection}>
@@ -68,13 +86,13 @@ export default function HomeScreen() {
             {getGreeting()},
           </Text>
           <Text style={[styles.greetingName, { color: colors.textPrimary }]}>
-            {user?.name || 'Operations Lead'}
+            {user?.name || t('Operations Lead')}
           </Text>
         </View>
 
         {/* ── Module Cards ─────────────────────────────────── */}
         <Text style={[styles.sectionHeading, { color: colors.textMuted }]}>
-          WAREHOUSE MODULES
+          {t('WAREHOUSE MODULES')}
         </Text>
 
         {/* Module 1: Packing */}
@@ -95,19 +113,19 @@ export default function HomeScreen() {
             </View>
             <View style={styles.moduleBadgeRow}>
               <View style={[styles.neonBadge, { backgroundColor: colors.primaryMuted, borderColor: `${colors.primary}40` }]}>
-                <Text style={[styles.neonBadgeText, { color: colors.primary }]}>2 MODULES</Text>
+                <Text style={[styles.neonBadgeText, { color: colors.primary }]}>2 {t('MODULES')}</Text>
               </View>
             </View>
           </View>
 
-          <Text style={[styles.moduleTitle, { color: colors.textPrimary }]}>Packing</Text>
+          <Text style={[styles.moduleTitle, { color: colors.textPrimary }]}>{t('Packing')}</Text>
           <Text style={[styles.moduleDesc, { color: colors.textSecondary }]}>
-            Carton registration, barcode SKU verification, container freight & pallet assignment
+            {t('Carton registration, barcode SKU verification, container freight & pallet assignment')}
           </Text>
 
           <View style={[styles.moduleFooter, { borderTopColor: colors.border }]}>
             <Text style={[styles.moduleFooterText, { color: colors.primary }]}>
-              Open Packing Modules
+              {t('Open Packing Modules')}
             </Text>
             <Ionicons name="arrow-forward" size={16} color={colors.primary} />
           </View>
@@ -131,19 +149,19 @@ export default function HomeScreen() {
             </View>
             <View style={styles.moduleBadgeRow}>
               <View style={[styles.neonBadge, { backgroundColor: colors.violetMuted, borderColor: `${colors.violet}40` }]}>
-                <Text style={[styles.neonBadgeText, { color: colors.violet }]}>2 MODULES</Text>
+                <Text style={[styles.neonBadgeText, { color: colors.violet }]}>2 {t('MODULES')}</Text>
               </View>
             </View>
           </View>
 
-          <Text style={[styles.moduleTitle, { color: colors.textPrimary }]}>Put Away</Text>
+          <Text style={[styles.moduleTitle, { color: colors.textPrimary }]}>{t('Put Away')}</Text>
           <Text style={[styles.moduleDesc, { color: colors.textSecondary }]}>
-            Standard SKU bin putaway, bulk pallet routing, bin capacity tracking & aisle sorting
+            {t('Standard SKU bin putaway, bulk pallet routing, bin capacity tracking & aisle sorting')}
           </Text>
 
           <View style={[styles.moduleFooter, { borderTopColor: colors.border }]}>
             <Text style={[styles.moduleFooterText, { color: colors.violet }]}>
-              Open Put Away Modules
+              {t('Open Put Away Modules')}
             </Text>
             <Ionicons name="arrow-forward" size={16} color={colors.violet} />
           </View>

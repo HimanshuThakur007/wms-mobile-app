@@ -10,9 +10,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { borderRadius, spacing } from '../../constants/theme';
 
-const monoFont = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
+const monoFont = Platform.select({ ios: 'System', android: 'sans-serif', default: 'System' });
 
 interface DataSyncModalProps {
   visible: boolean;
@@ -38,6 +39,7 @@ export const DataSyncModal: React.FC<DataSyncModalProps> = ({
   accentColor,
 }) => {
   const { colors, isDark } = useTheme();
+  const { t } = useLanguage();
   const themeAccent = accentColor || colors.primary;
   const animatedProgress = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -122,8 +124,8 @@ export const DataSyncModal: React.FC<DataSyncModalProps> = ({
           {/* Title & Document Badge */}
           <Text style={[styles.title, { color: colors.textPrimary }]}>
             {isComplete
-              ? (completeTitle || 'Picklist Sync Complete')
-              : (title || 'Syncing Picklist Data')}
+              ? (completeTitle ? t(completeTitle) : t('Picklist Sync Complete'))
+              : (title ? t(title) : t('Syncing Picklist Data'))}
           </Text>
 
           {documentNumber ? (
@@ -147,7 +149,7 @@ export const DataSyncModal: React.FC<DataSyncModalProps> = ({
           <View style={styles.progressSection}>
             <View style={styles.progressHeader}>
               <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>
-                {isComplete ? 'Cached locally' : 'Sync progress'}
+                {isComplete ? t('Cached locally') : t('Sync progress')}
               </Text>
               <Text style={[styles.percentText, { color: themeAccent }]}>
                 {Math.round(progress)}%
@@ -190,7 +192,7 @@ export const DataSyncModal: React.FC<DataSyncModalProps> = ({
               ]}
               numberOfLines={2}
             >
-              {statusText || 'Preparing picklist data...'}
+              {t(statusText || 'Preparing picklist data...')}
             </Text>
           </View>
 
@@ -209,7 +211,7 @@ export const DataSyncModal: React.FC<DataSyncModalProps> = ({
             >
               <Ionicons name="cube-outline" size={14} color="#10B981" />
               <Text style={styles.itemCountText}>
-                {itemCount} {itemCount === 1 ? 'item' : 'items'} indexed for 0ms scan
+                {itemCount} {t('items indexed for 0ms scan')}
               </Text>
             </View>
           )}

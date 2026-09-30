@@ -31,6 +31,9 @@ export const BIN_MASTER_API_URL = "https://market99.tech/tmp/ynex/wms_api/get_bi
 export const BIN_MASTER_PHP_URL = "https://market99.tech/tmp/ynex/wms_api/get_bin_master.php";
 export const PENDING_GRN_ITEMS_API_URL = "https://market99.tech/tmp/ynex/wms_api/pending_grn_items";
 export const PENDING_GRN_ITEMS_PHP_URL = "https://market99.tech/tmp/ynex/wms_api/pending_grn_items.php";
+export const SUBMIT_GRN_PHP_URL = "https://market99.tech/tmp/ynex/wms_api/submit_grn.php";
+
+export type { PutawayGrnItem, PutawayGrnPayload } from "./localScanningCache";
 
 export interface PutawayUserAssignment {
   grn_number: string;
@@ -563,4 +566,55 @@ export async function validateBinMaster(binNumber: string): Promise<ApiResponse>
 
   return res;
 }
+
+/**
+ * Submit GRN Putaway API
+ * Endpoint: https://market99.tech/tmp/ynex/wms_api/submit_grn.php
+ * Request Body:
+ * {
+ *   "grn": "GRN-3218",
+ *   "department": ["HEALTH & BEAUTY", "STATIONERY"],
+ *   "vouchdate": "2026-08-07"
+ * }
+ */
+export async function submitGrn(params: {
+  grn: string;
+  department: string[];
+  vouchdate: string;
+}): Promise<ApiResponse> {
+  const cleanGrn = String(params.grn || "").trim();
+  const deptArray = Array.isArray(params.department)
+    ? params.department.map((d) => String(d).trim()).filter(Boolean)
+    : typeof params.department === "string"
+    ? [String(params.department).trim()]
+    : [];
+  const cleanVouchDate = String(params.vouchdate || "").trim();
+
+  const body = {
+    grn: cleanGrn,
+    department: deptArray,
+    vouchdate: cleanVouchDate,
+  };
+
+  console.log("==============================================");
+  console.log("SUBMIT GRN API REQUEST:", JSON.stringify(body, null, 2));
+  console.log("==============================================");
+
+  const response = await fetch(SUBMIT_GRN_PHP_URL, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  const res = await parseApiResponse(response, "SUBMIT GRN");
+  console.log("==============================================");
+  console.log("SUBMIT GRN API RESPONSE:", JSON.stringify(res, null, 2));
+  console.log("==============================================");
+
+  return res;
+}
+
 

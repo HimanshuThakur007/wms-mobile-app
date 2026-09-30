@@ -15,9 +15,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../src/context/AuthContext';
+import { useAuth, CREDENTIALS_STORAGE_KEY } from '../../src/context/AuthContext';
 import { useTheme } from '../../src/context/ThemeContext';
+import { useLanguage } from '../../src/context/LanguageContext';
 import { ThemeToggle } from '../../src/components/common/ThemeToggle';
+import { LanguageToggle } from '../../src/components/common/LanguageToggle';
 import { BrandLogo } from '../../src/components/common/BrandLogo';
 import { SafeStorage } from '../../src/utils/storage';
 import { borderRadius, spacing } from '../../src/constants/theme';
@@ -25,7 +27,7 @@ import { borderRadius, spacing } from '../../src/constants/theme';
 const REMEMBER_EMAIL_KEY = 'wms_remembered_email';
 const REMEMBER_PASS_KEY = 'wms_remembered_pass';
 const REMEMBER_TOGGLE_KEY = 'wms_remember_me_toggle';
-const monoFont = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
+const monoFont = Platform.select({ ios: 'System', android: 'sans-serif', default: 'System' });
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
@@ -34,6 +36,7 @@ export default function LoginScreen() {
   const isCompact = height < 750;
   const { login, isLoading } = useAuth();
   const { colors, isDark } = useTheme();
+  const { t } = useLanguage();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -54,6 +57,20 @@ export default function LoginScreen() {
         setRememberMe(false);
         return;
       }
+      setRememberMe(true);
+
+      // Try loading from CREDENTIALS_STORAGE_KEY first
+      const credsStr = await SafeStorage.getItem(CREDENTIALS_STORAGE_KEY);
+      if (credsStr) {
+        try {
+          const parsed = JSON.parse(credsStr);
+          if (parsed.email) setEmail(parsed.email);
+          if (parsed.password) setPassword(parsed.password);
+          return;
+        } catch (e) {}
+      }
+
+      // Fallback to REMEMBER_EMAIL_KEY / REMEMBER_PASS_KEY
       const savedEmail = await SafeStorage.getItem(REMEMBER_EMAIL_KEY);
       const savedPass = await SafeStorage.getItem(REMEMBER_PASS_KEY);
       if (savedEmail) setEmail(savedEmail);
@@ -63,38 +80,60 @@ export default function LoginScreen() {
     }
   };
 
+  const toggleRememberMe = async () => {
+    const nextVal = !rememberMe;
+    setRememberMe(nextVal);
+    try {
+      if (!nextVal) {
+        await SafeStorage.setItem(REMEMBER_TOGGLE_KEY, 'false');
+        await SafeStorage.removeItem(REMEMBER_EMAIL_KEY);
+        await SafeStorage.removeItem(REMEMBER_PASS_KEY);
+        await SafeStorage.removeItem(CREDENTIALS_STORAGE_KEY);
+      } else {
+        await SafeStorage.setItem(REMEMBER_TOGGLE_KEY, 'true');
+      }
+    } catch (e) {
+      console.log('TOGGLE REMEMBER ERROR:', e);
+    }
+  };
+
   const handleLogin = async () => {
     setErrorMsg('');
     const trimmedEmail = email.trim();
     const trimmedPass = password.trim();
 
     if (!trimmedEmail) {
-      setErrorMsg('Please enter your Operator / Employee ID or Email');
+      setErrorMsg(t('Please enter your Operator / Employee ID or Email'));
       return;
     }
     if (!trimmedPass) {
-      setErrorMsg('Please enter your password');
+      setErrorMsg(t('Please enter your password'));
       return;
     }
 
     try {
-      const success = await login(trimmedEmail, trimmedPass);
+      const success = await login(trimmedEmail, trimmedPass, rememberMe);
       if (success) {
         if (rememberMe) {
           await SafeStorage.setItem(REMEMBER_EMAIL_KEY, trimmedEmail);
           await SafeStorage.setItem(REMEMBER_PASS_KEY, trimmedPass);
           await SafeStorage.setItem(REMEMBER_TOGGLE_KEY, 'true');
+          await SafeStorage.setItem(
+            CREDENTIALS_STORAGE_KEY,
+            JSON.stringify({ email: trimmedEmail, password: trimmedPass })
+          );
         } else {
           await SafeStorage.removeItem(REMEMBER_EMAIL_KEY);
           await SafeStorage.removeItem(REMEMBER_PASS_KEY);
           await SafeStorage.setItem(REMEMBER_TOGGLE_KEY, 'false');
+          await SafeStorage.removeItem(CREDENTIALS_STORAGE_KEY);
         }
         router.replace('/(tabs)');
       } else {
-        setErrorMsg('Invalid User ID or Password. Please try again.');
+        setErrorMsg(t('Invalid User ID or Password. Please try again.'));
       }
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Authentication error. Please check your connection.');
+      setErrorMsg(err?.message ? t(err.message, err.message) : t('Authentication error. Please check your connection.'));
     }
   };
 
@@ -112,13 +151,16 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Top Bar with ThemeToggle */}
+          {/* Top Bar with LanguageToggle & ThemeToggle */}
           <View style={[styles.topBar, isCompact && { marginBottom: 6, marginTop: 0 }]}>
             <View style={styles.liveBadge}>
               <View style={[styles.liveDot, { backgroundColor: colors.primary }]} />
-              <Text style={[styles.liveText, { color: colors.primary }]}>TERMINAL ONLINE</Text>
+              <Text style={[styles.liveText, { color: colors.primary }]}>{t('TERMINAL ONLINE')}</Text>
             </View>
-            <ThemeToggle />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <LanguageToggle />
+              <ThemeToggle />
+            </View>
           </View>
 
           {/* Logo / Brand Header */}
@@ -156,10 +198,10 @@ export default function LoginScreen() {
           >
             <View style={[styles.cardHeader, isCompact && { marginBottom: 8 }]}>
               <Text style={[styles.cardTitle, { color: colors.textPrimary }, isCompact && { fontSize: 15 }]}>
-                Sign In
+                {t('Sign In')}
               </Text>
               <Text style={[styles.cardSubtitle, { color: colors.textMuted }, isCompact && { fontSize: 11, marginTop: 1 }]}>
-                Enter operator credentials for this terminal
+                {t('Enter operator credentials for this terminal')}
               </Text>
             </View>
 
@@ -182,8 +224,8 @@ export default function LoginScreen() {
 
             {/* User ID / Email Input */}
             <View style={[styles.inputGroup, isCompact && { marginBottom: 6 }]}>
-              <Text style={[styles.label, { color: colors.textSecondary }, isCompact && { fontSize: 9, marginBottom: 3 }]}>
-                USER ID / EMAIL <Text style={{ color: colors.red }}>*</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }, isCompact && { fontSize: 12, marginBottom: 4 }]}>
+                {t('USER ID / EMAIL')} <Text style={{ color: colors.red }}>*</Text>
               </Text>
               <View
                 style={[
@@ -205,8 +247,8 @@ export default function LoginScreen() {
                   placeholder="e.g. USER201 or user@market99.com"
                   placeholderTextColor={colors.textMuted}
                   value={email}
-                  onChangeText={(t) => {
-                    setEmail(t);
+                  onChangeText={(tVal) => {
+                    setEmail(tVal);
                     if (errorMsg) setErrorMsg('');
                   }}
                   onFocus={() => setEmailFocused(true)}
@@ -220,8 +262,8 @@ export default function LoginScreen() {
 
             {/* Password Input */}
             <View style={[styles.inputGroup, isCompact && { marginBottom: 6 }]}>
-              <Text style={[styles.label, { color: colors.textSecondary }, isCompact && { fontSize: 9, marginBottom: 3 }]}>
-                PASSWORD <Text style={{ color: colors.red }}>*</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }, isCompact && { fontSize: 12, marginBottom: 4 }]}>
+                {t('PASSWORD')} <Text style={{ color: colors.red }}>*</Text>
               </Text>
               <View
                 style={[
@@ -240,11 +282,11 @@ export default function LoginScreen() {
                 />
                 <TextInput
                   style={[styles.input, { color: colors.textPrimary }, isCompact && { fontSize: 12 }]}
-                  placeholder="Enter terminal password"
+                  placeholder={t('Enter terminal password')}
                   placeholderTextColor={colors.textMuted}
                   value={password}
-                  onChangeText={(t) => {
-                    setPassword(t);
+                  onChangeText={(tVal) => {
+                    setPassword(tVal);
                     if (errorMsg) setErrorMsg('');
                   }}
                   onFocus={() => setPassFocused(true)}
@@ -286,7 +328,7 @@ export default function LoginScreen() {
                 {rememberMe && <Ionicons name="checkmark" size={isCompact ? 11 : 13} color="#0B0F14" />}
               </View>
               <Text style={[styles.rememberText, { color: colors.textSecondary }, isCompact && { fontSize: 11 }]}>
-                Remember credentials on this terminal
+                {t('Remember credentials on this terminal')}
               </Text>
             </TouchableOpacity>
 
@@ -307,7 +349,7 @@ export default function LoginScreen() {
               ) : (
                 <>
                   <Ionicons name="log-in-outline" size={isCompact ? 16 : 18} color="#0B0F14" />
-                  <Text style={[styles.submitBtnText, isCompact && { fontSize: 13 }]}>Sign In to Terminal</Text>
+                  <Text style={[styles.submitBtnText, isCompact && { fontSize: 13 }]}>{t('Sign In to Terminal')}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -325,18 +367,18 @@ export default function LoginScreen() {
             ]}
           >
             <View style={styles.statusItem}>
-              <Text style={[styles.statusVal, { color: colors.primary }, isCompact && { fontSize: 8 }]}>FACILITY</Text>
-              <Text style={[styles.statusLabel, { color: colors.textPrimary }, isCompact && { fontSize: 10 }]}>WH-01 MAIN</Text>
+              <Text style={[styles.statusVal, { color: colors.primary }, isCompact && { fontSize: 8 }]}>{t('FACILITY')}</Text>
+              <Text style={[styles.statusLabel, { color: colors.textPrimary }, isCompact && { fontSize: 10 }]}>{t('WH-01 MAIN')}</Text>
             </View>
             <View style={[styles.statusDivider, { backgroundColor: colors.border }, isCompact && { height: 18 }]} />
             <View style={styles.statusItem}>
-              <Text style={[styles.statusVal, { color: colors.amber }, isCompact && { fontSize: 8 }]}>GATEWAY</Text>
+              <Text style={[styles.statusVal, { color: colors.amber }, isCompact && { fontSize: 8 }]}>{t('GATEWAY')}</Text>
               <Text style={[styles.statusLabel, { color: colors.textPrimary }, isCompact && { fontSize: 10 }]}>10.12.0.1</Text>
             </View>
             <View style={[styles.statusDivider, { backgroundColor: colors.border }, isCompact && { height: 18 }]} />
             <View style={styles.statusItem}>
-              <Text style={[styles.statusVal, { color: colors.violet }, isCompact && { fontSize: 8 }]}>MODE</Text>
-              <Text style={[styles.statusLabel, { color: colors.textPrimary }, isCompact && { fontSize: 10 }]}>LASER / SYNC</Text>
+              <Text style={[styles.statusVal, { color: colors.violet }, isCompact && { fontSize: 8 }]}>{t('MODE')}</Text>
+              <Text style={[styles.statusLabel, { color: colors.textPrimary }, isCompact && { fontSize: 10 }]}>{t('LASER / SYNC')}</Text>
             </View>
           </View>
         </ScrollView>
@@ -437,7 +479,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   label: {
-    fontSize: 11,
+    fontSize: 14,
     fontFamily: monoFont,
     fontWeight: '800',
     letterSpacing: 0.6,

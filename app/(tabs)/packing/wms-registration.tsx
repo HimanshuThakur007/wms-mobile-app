@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,189 +7,54 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  Alert,
   Platform,
+  RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../../src/context/AuthContext';
 import { useTheme } from '../../../src/context/ThemeContext';
-import { BrandLogo } from '../../../src/components/common/BrandLogo';
-import { HeaderActions } from '../../../src/components/common/HeaderActions';
+import { useLanguage } from '../../../src/context/LanguageContext';
+import { AppHeader } from '../../../src/components/common/AppHeader';
 import { DocumentSelectSheet } from '../../../src/components/common/DocumentSelectSheet';
 import { DepartmentSelectSheet } from '../../../src/components/common/DepartmentSelectSheet';
 import { DataSyncModal } from '../../../src/components/common/DataSyncModal';
-import { DocumentType, Registration } from '../../../src/types';
-import {
-  getDocuments,
-  getUserRegistrations,
-  registerDocument,
-} from '../../../src/services/api';
-import {
-  syncDocumentScanningData,
-  fetchAndCacheScanningData,
-} from '../../../src/services/localScanningCache';
-import { borderRadius, spacing } from '../../../src/constants/theme';
-
-const monoFont = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
+import { syncDocumentScanningData } from '../../../src/services/localScanningCache';
+import { useDocumentRegistrationSession } from '../../../src/hooks/useDocumentRegistrationSession';
+import { borderRadius, spacing, monoFont } from '../../../src/constants/theme';
 
 export default function WmsRegistrationScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const params = useLocalSearchParams();
   const { user } = useAuth();
   const { colors } = useTheme();
+  const { t } = useLanguage();
 
   const userId = user?.id ? Number(user.id) : 1;
   const userName = user?.name || 'Operator';
 
-  const [tab, setTab] = useState<'register' | 'scan'>('register');
+  const session = useDocumentRegistrationSession({
+    userId,
+    userName,
+    defaultTab: (params.tab as 'register' | 'scan') || 'register',
+    fallbackDepts: ['General Packing', 'Receiving', 'Shipping', 'Quality Control'],
+  });
 
-  // Documents and Registrations
-  const [documents, setDocuments] = useState<DocumentType[]>([]);
-  const [registrations, setRegistrations] = useState<Registration[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [registering, setRegistering] = useState(false);
-  const [regSuccess, setRegSuccess] = useState('');
+  useFocusEffect(
+    React.useCallback(() => {
+      session.loadData();
+    }, [session.loadData])
+  );
 
-  // Register Tab State
-  const [selectedDoc, setSelectedDoc] = useState<DocumentType | null>(null);
-  const [selectedDepts, setSelectedDepts] = useState<string[]>([]);
-  const [docSheetOpen, setDocSheetOpen] = useState(false);
-  const [deptSheetOpen, setDeptSheetOpen] = useState(false);
-
-  // Scan Tab State
-  const [scanSearch, setScanSearch] = useState('');
-  const [selectedScanDocNo, setSelectedScanDocNo] = useState<string | null>(null);
-  const [selectedScanDepts, setSelectedScanDepts] = useState<string[]>([]);
-
-  // Data Syncing State
-  const [syncModalVisible, setSyncModalVisible] = useState(false);
-  const [syncDocNo, setSyncDocNo] = useState('');
-  const [syncProgress, setSyncProgress] = useState(0);
-  const [syncStatusText, setSyncStatusText] = useState('');
-  const [syncItemCount, setSyncItemCount] = useState<number | undefined>(undefined);
-  const [syncComplete, setSyncComplete] = useState(false);
-
-  useEffect(() => {
-    loadData();
-  }, [userId]);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [docsData, regsData] = await Promise.all([
-        getDocuments(),
-        getUserRegistrations(userId),
-      ]);
-      setDocuments(docsData);
-      setRegistrations(regsData);
-    } catch (e) {
-      console.log('LOAD DATA ERROR:', e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Available departments for selected document
-  const availableDepts = useMemo(() => {
-    if (!selectedDoc) return [];
-    if (Array.isArray(selectedDoc.departments)) return selectedDoc.departments;
-    if (typeof selectedDoc.departments === 'string' && (selectedDoc.departments as string).length > 0) {
-      return (selectedDoc.departments as string).split(',').map((d: string) => d.trim()).filter(Boolean);
-    }
-    return ['General Packing', 'Receiving', 'Shipping', 'Quality Control'];
-  }, [selectedDoc]);
-
-  // Handle document selection
-  const handleSelectDoc = (doc: DocumentType) => {
-    setSelectedDoc(doc);
-    setSelectedDepts([]);
-  };
-
-  // Toggle single department
-  const toggleDept = (dept: string) => {
-    setSelectedDepts((prev) =>
-      prev.includes(dept) ? prev.filter((d) => d !== dept) : [...prev, dept]
-    );
-  };
-
-  // Toggle all departments
-  const toggleAllDepts = () => {
-    if (selectedDepts.length === availableDepts.length) {
-      setSelectedDepts([]);
-    } else {
-      setSelectedDepts([...availableDepts]);
-    }
-  };
-
-  // Register document with selected departments
-  const handleRegister = async () => {
-    if (!selectedDoc || selectedDepts.length === 0) {
-      Alert.alert('Required', 'Please select a document and at least one department.');
-      return;
-    }
-    const docNo = selectedDoc.doc_no || selectedDoc.document_number || '';
-    const docId = Number(selectedDoc.id || 0);
-    const orgName = selectedDoc.organization_name || 'Organization';
-
-    console.log('HANDLE REGISTER CLICKED:', {
-      userId,
-      userName,
-      docId,
-      docNo,
-      orgName,
-      selectedDepts,
-    });
-
-    try {
-      setRegistering(true);
-      const res = await registerDocument({
-        documentId: docId,
-        documentNumber: docNo,
-        departments: selectedDepts,
-        userId,
-        userName,
-        docNo,
-        organizationName: orgName,
-      });
-
-      console.log('WMS REGISTRATION RESPONSE:', res);
-
-      if (res?.status === true) {
-        Alert.alert(
-          'Registration Successful',
-          res?.message || `Registered ${selectedDepts.length} department(s) for ${docNo}`
-        );
-        setRegSuccess(
-          `Registered ${selectedDepts.length} department(s) for ${docNo}`
-        );
-        setSelectedDoc(null);
-        setSelectedDepts([]);
-        // Background cache picklist right away
-        fetchAndCacheScanningData(docNo);
-        await loadData();
-        setTimeout(() => setRegSuccess(''), 4000);
-      } else {
-        console.log('REGISTRATION FAILED MSG:', res?.message);
-        Alert.alert('Registration Failed', res?.message || 'Unable to register document.');
-      }
-    } catch (err: any) {
-      console.log('REGISTRATION EXCEPTION:', err);
-      Alert.alert('Error', err?.message || 'Network error while registering.');
-    } finally {
-      setRegistering(false);
-    }
-  };
-
-  // Scan Tab: Group registered sessions by document
   const registeredDocs = useMemo(() => {
     const map = new Map<
       string,
       { doc_no: string; organization_name: string; departments: string[] }
     >();
 
-    registrations.forEach((r) => {
+    session.registrations.forEach((r) => {
       const docNo = r.doc_no || r.document_number || '';
       if (!docNo) return;
       if (!map.has(docNo)) {
@@ -207,11 +72,10 @@ export default function WmsRegistrationScreen() {
     });
 
     return Array.from(map.values());
-  }, [registrations]);
+  }, [session.registrations]);
 
-  // Flatten registered docs into scan rows
   const scanRows = useMemo(() => {
-    const q = scanSearch.toLowerCase().trim();
+    const q = session.scanSearch.toLowerCase().trim();
     const rows: { id: string; doc_no: string; organization_name: string; department: string }[] = [];
 
     registeredDocs.forEach((d) => {
@@ -228,176 +92,125 @@ export default function WmsRegistrationScreen() {
     });
 
     return rows;
-  }, [registeredDocs, scanSearch]);
+  }, [registeredDocs, session.scanSearch]);
 
-  const selectedScanDoc = registeredDocs.find((d) => d.doc_no === selectedScanDocNo) || null;
+  const selectedScanRows = useMemo(() => {
+    return scanRows.filter((r) => session.selectedScanRowIds.includes(r.id));
+  }, [scanRows, session.selectedScanRowIds]);
 
-  const handleScanRowPress = (row: { doc_no: string; department: string }) => {
-    if (selectedScanDocNo === null || selectedScanDocNo !== row.doc_no) {
-      setSelectedScanDocNo(row.doc_no);
-      setSelectedScanDepts([row.department]);
-      return;
-    }
-    // Same document — toggle department
-    setSelectedScanDepts((prev) =>
-      prev.includes(row.department)
-        ? prev.filter((d) => d !== row.department)
-        : [...prev, row.department]
-    );
-  };
-
-  const toggleAllScanDepts = () => {
-    if (!selectedScanDoc) return;
-    if (selectedScanDepts.length === selectedScanDoc.departments.length) {
-      setSelectedScanDepts([]);
-    } else {
-      setSelectedScanDepts([...selectedScanDoc.departments]);
-    }
-  };
+  const isAllScanRowsSelected = useMemo(() => {
+    return scanRows.length > 0 && scanRows.every((r) => session.selectedScanRowIds.includes(r.id));
+  }, [scanRows, session.selectedScanRowIds]);
 
   const handleStartScan = async () => {
-    if (!selectedScanDoc || selectedScanDepts.length === 0) return;
-    const docNo = selectedScanDoc.doc_no;
-    const orgName = selectedScanDoc.organization_name;
-    const depts = selectedScanDepts.join(',');
-
-    setSyncDocNo(docNo);
-    setSyncProgress(10);
-    setSyncStatusText('Connecting to WMS server...');
-    setSyncItemCount(undefined);
-    setSyncComplete(false);
-    setSyncModalVisible(true);
+    if (selectedScanRows.length === 0) return;
+    const docNos = Array.from(new Set(selectedScanRows.map((r) => r.doc_no)));
+    const orgName = selectedScanRows[0]?.organization_name || 'Organization';
+    const depts = Array.from(new Set(selectedScanRows.map((r) => r.department))).join(',');
+    const primaryDocNo = docNos.join(', ');
 
     try {
-      const result = await syncDocumentScanningData(docNo, (progress, statusText, count) => {
-        setSyncProgress(progress);
-        setSyncStatusText(statusText);
-        if (count !== undefined && count > 0) {
-          setSyncItemCount(count);
-        }
+      await Promise.all(docNos.map((docNo) => session.startDataSync(docNo)));
+      router.push({
+        pathname: '/(tabs)/packing/wms-scanning',
+        params: {
+          document_number: primaryDocNo,
+          organization_name: orgName,
+          departments: depts,
+          user_id: String(userId),
+        },
       });
-
-      setSyncComplete(true);
-      setTimeout(() => {
-        setSyncModalVisible(false);
-        router.push({
-          pathname: '/(tabs)/packing/wms-scanning',
-          params: {
-            document_number: docNo,
-            organization_name: orgName,
-            departments: depts,
-            user_id: String(userId),
-          },
-        });
-      }, 500);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Data sync error:', err);
-      setSyncProgress(100);
-      setSyncStatusText('Ready to scan');
-      setTimeout(() => {
-        setSyncModalVisible(false);
-        router.push({
-          pathname: '/(tabs)/packing/wms-scanning',
-          params: {
-            document_number: docNo,
-            organization_name: orgName,
-            departments: depts,
-            user_id: String(userId),
-          },
-        });
-      }, 500);
+      router.push({
+        pathname: '/(tabs)/packing/wms-scanning',
+        params: {
+          document_number: primaryDocNo,
+          organization_name: orgName,
+          departments: depts,
+          user_id: String(userId),
+        },
+      });
     }
   };
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background, paddingTop: Math.max(insets.top, 16) }]}>
-      {/* ── Top Header ──────────────────────────────────── */}
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <View style={styles.headerTop}>
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => router.back()}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="chevron-back" size={18} color={colors.textSecondary} />
-            <Text style={[styles.backBtnText, { color: colors.textSecondary }]}>Back</Text>
-          </TouchableOpacity>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <BrandLogo size={28} rounded />
-            <HeaderActions />
-          </View>
-        </View>
+    <View style={[styles.root, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      {/* Unified Header */}
+      <AppHeader
+        showBack
+        moduleTag={t('WMS PACKING MODULE')}
+        title={t('WMS Packing')}
+        showLogo
+        showActions
+      />
 
-        <View style={styles.badgeRow}>
-          <View style={[styles.liveDot, { backgroundColor: colors.primary }]} />
-          <Text style={[styles.badgeText, { color: colors.textSecondary }]}>
-            WMS PACKING MODULE
-          </Text>
-        </View>
-        <Text style={[styles.title, { color: colors.textPrimary }]}>WMS Packing</Text>
-      </View>
-
-      {/* ── Register / Scan Tabs ────────────────────────── */}
+      {/* Register / Scan Tabs */}
       <View style={styles.tabBar}>
         <View style={[styles.tabTrack, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <TouchableOpacity
             style={[
               styles.tabBtn,
-              tab === 'register' && { backgroundColor: colors.primary },
+              session.tab === 'register' && { backgroundColor: colors.primary },
             ]}
-            onPress={() => setTab('register')}
+            onPress={() => session.handleTabSwitch('register')}
             activeOpacity={0.8}
           >
             <Ionicons
               name="create-outline"
               size={16}
-              color={tab === 'register' ? '#0B0F14' : colors.textSecondary}
+              color={session.tab === 'register' ? '#0B0F14' : colors.textSecondary}
             />
             <Text
               style={[
                 styles.tabBtnText,
-                { color: tab === 'register' ? '#0B0F14' : colors.textSecondary },
+                { color: session.tab === 'register' ? '#0B0F14' : colors.textSecondary },
               ]}
             >
-              Register
+              {t('Register')}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[
               styles.tabBtn,
-              tab === 'scan' && { backgroundColor: colors.primary },
+              session.tab === 'scan' && { backgroundColor: colors.primary },
             ]}
-            onPress={() => setTab('scan')}
+            onPress={() => session.handleTabSwitch('scan')}
             activeOpacity={0.8}
           >
             <Ionicons
               name="barcode-outline"
               size={16}
-              color={tab === 'scan' ? '#0B0F14' : colors.textSecondary}
+              color={session.tab === 'scan' ? '#0B0F14' : colors.textSecondary}
             />
             <Text
               style={[
                 styles.tabBtnText,
-                { color: tab === 'scan' ? '#0B0F14' : colors.textSecondary },
+                { color: session.tab === 'scan' ? '#0B0F14' : colors.textSecondary },
               ]}
             >
-              Scan
+              {t('Scan')}
             </Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* ════════════════════════════════════════════════════
-          REGISTER TAB
-      ════════════════════════════════════════════════════ */}
-      {tab === 'register' ? (
+      {/* REGISTER TAB */}
+      {session.tab === 'register' ? (
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl
+              refreshing={session.refreshing}
+              onRefresh={session.onRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
         >
-          {/* Info Banner */}
           <View
             style={[
               styles.bannerBox,
@@ -408,934 +221,286 @@ export default function WmsRegistrationScreen() {
             ]}
           >
             <View style={[styles.bannerIconWrap, { backgroundColor: colors.surface }]}>
-              <Ionicons name="document-text" size={18} color={colors.primary} />
+              <Ionicons name="sparkles" size={16} color={colors.primary} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.bannerTitle, { color: colors.textPrimary }]}>Packer Registration</Text>
-              <Text style={[styles.bannerSub, { color: colors.textSecondary }]}>
-                Select one document and register one or more departments.
+              <Text style={[styles.bannerTitle, { color: colors.textPrimary }]}>
+                {t('Document Registration')}
+              </Text>
+              <Text style={[styles.bannerSub, { color: colors.textMuted }]}>
+                {t('Assign picking lists & departments for packing verification')}
               </Text>
             </View>
           </View>
 
-          {/* Success Banner */}
-          {regSuccess ? (
-            <View
-              style={[
-                styles.successBox,
-                {
-                  backgroundColor: colors.primaryMuted,
-                  borderColor: `${colors.primary}50`,
-                },
-              ]}
-            >
-              <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
-              <Text style={[styles.successText, { color: colors.primary }]}>{regSuccess}</Text>
+          {session.regSuccess ? (
+            <View style={[styles.successBox, { backgroundColor: `${colors.emerald}20`, borderColor: `${colors.emerald}40` }]}>
+              <Ionicons name="checkmark-circle" size={18} color={colors.emerald} />
+              <Text style={[styles.successText, { color: colors.emerald }]}>{session.regSuccess}</Text>
             </View>
           ) : null}
 
-          {/* Form Card */}
-          <View
-            style={[
-              styles.formCard,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            {/* Document Select Field */}
-            <View style={styles.formGroup}>
-              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
-                DOCUMENT NUMBER <Text style={{ color: colors.red }}>*</Text>
-              </Text>
-              <TouchableOpacity
-                style={[
-                  styles.selectBtn,
-                  {
-                    backgroundColor: colors.surface3,
-                    borderColor: selectedDoc ? colors.primary : colors.border,
-                  },
-                ]}
-                activeOpacity={0.7}
-                onPress={() => setDocSheetOpen(true)}
-              >
-                <View style={styles.selectBtnLeft}>
-                  <Ionicons
-                    name="document-text-outline"
-                    size={18}
-                    color={selectedDoc ? colors.primary : colors.textMuted}
-                  />
-                  <Text
-                    style={[
-                      styles.selectBtnText,
-                      { color: selectedDoc ? colors.textPrimary : colors.textMuted },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {selectedDoc
-                      ? selectedDoc.doc_no || selectedDoc.document_number
-                      : 'Select document number'}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-down" size={16} color={colors.textSecondary} />
-              </TouchableOpacity>
+          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>{t('Document Number')}</Text>
 
-              {/* Organization Preview */}
-              {selectedDoc && (
-                <View
-                  style={[
-                    styles.orgPreviewBox,
-                    {
-                      backgroundColor: colors.surface2,
-                      borderColor: colors.border,
-                    },
-                  ]}
-                >
-                  <Ionicons name="business-outline" size={16} color={colors.primary} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.orgLabel, { color: colors.textMuted }]}>ORGANIZATION</Text>
-                    <Text style={[styles.orgText, { color: colors.textPrimary }]}>
-                      {selectedDoc.organization_name || 'General Logistics'}
-                    </Text>
-                  </View>
-                </View>
-              )}
-            </View>
-
-            {/* Department Select Field */}
-            <View style={styles.formGroup}>
-              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
-                DEPARTMENTS (MULTI) <Text style={{ color: colors.red }}>*</Text>
-              </Text>
-              <TouchableOpacity
-                style={[
-                  styles.selectBtn,
-                  {
-                    backgroundColor: colors.surface3,
-                    borderColor: selectedDepts.length > 0 ? colors.primary : colors.border,
-                    opacity: !selectedDoc ? 0.5 : 1,
-                  },
-                ]}
-                disabled={!selectedDoc}
-                activeOpacity={0.7}
-                onPress={() => setDeptSheetOpen(true)}
-              >
-                <View style={styles.selectBtnLeft}>
-                  <Ionicons
-                    name="grid-outline"
-                    size={18}
-                    color={selectedDepts.length > 0 ? colors.primary : colors.textMuted}
-                  />
-                  <Text
-                    style={[
-                      styles.selectBtnText,
-                      { color: selectedDepts.length > 0 ? colors.textPrimary : colors.textMuted },
-                    ]}
-                  >
-                    {selectedDepts.length > 0
-                      ? `${selectedDepts.length} department${selectedDepts.length > 1 ? 's' : ''} selected`
-                      : 'Select departments'}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-down" size={16} color={colors.textSecondary} />
-              </TouchableOpacity>
-
-              {/* Selected Department Chips */}
-              {selectedDepts.length > 0 && (
-                <View style={styles.chipRow}>
-                  {selectedDepts.map((d) => (
-                    <View
-                      key={d}
-                      style={[
-                        styles.deptChip,
-                        {
-                          backgroundColor: colors.primaryMuted,
-                          borderColor: `${colors.primary}40`,
-                        },
-                      ]}
-                    >
-                      <Text style={[styles.deptChipText, { color: colors.primary }]}>{d}</Text>
-                      <TouchableOpacity onPress={() => toggleDept(d)}>
-                        <Ionicons name="close" size={14} color={colors.primary} />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-
-            {/* Register Button */}
             <TouchableOpacity
               style={[
-                styles.registerBtn,
-                { backgroundColor: colors.primary },
-                (!selectedDoc || selectedDepts.length === 0 || registering) && {
-                  backgroundColor: colors.surface3,
+                styles.selectInput,
+                {
+                  backgroundColor: colors.surface2,
+                  borderColor: session.selectedDoc ? colors.primary : colors.border,
                 },
               ]}
-              disabled={!selectedDoc || selectedDepts.length === 0 || registering}
-              activeOpacity={0.85}
-              onPress={handleRegister}
+              onPress={() => session.setDocSheetOpen(true)}
+              activeOpacity={0.7}
             >
-              {registering ? (
-                <ActivityIndicator size="small" color={colors.textPrimary} />
+              <Ionicons name="document-text-outline" size={18} color={session.selectedDoc ? colors.primary : colors.textMuted} />
+              <Text style={[styles.selectInputText, { color: session.selectedDoc ? colors.textPrimary : colors.textMuted }]}>
+                {session.selectedDoc ? (session.selectedDoc.doc_no || session.selectedDoc.document_number) : t('Select Document Number...')}
+              </Text>
+              <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
+            </TouchableOpacity>
+
+            <Text style={[styles.cardTitle, { color: colors.textPrimary, marginTop: 16 }]}>{t('Department Assignment')}</Text>
+
+            <TouchableOpacity
+              style={[
+                styles.selectInput,
+                {
+                  backgroundColor: colors.surface2,
+                  borderColor: session.selectedDepts.length > 0 ? colors.primary : colors.border,
+                },
+              ]}
+              onPress={() => session.setDeptSheetOpen(true)}
+              activeOpacity={0.7}
+              disabled={!session.selectedDoc}
+            >
+              <Ionicons name="albums-outline" size={18} color={session.selectedDepts.length > 0 ? colors.primary : colors.textMuted} />
+              <Text style={[styles.selectInputText, { color: session.selectedDepts.length > 0 ? colors.textPrimary : colors.textMuted }]}>
+                {session.selectedDepts.length > 0 ? `${session.selectedDepts.length} ${t('Department(s) selected')}` : t('Select Department(s)...')}
+              </Text>
+              <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.primaryBtn,
+                { backgroundColor: colors.primary },
+                (!session.selectedDoc || session.selectedDepts.length === 0 || session.registering) && styles.btnDisabled,
+              ]}
+              onPress={session.handleRegister}
+              disabled={!session.selectedDoc || session.selectedDepts.length === 0 || session.registering}
+            >
+              {session.registering ? (
+                <ActivityIndicator size="small" color="#0B0F14" />
               ) : (
                 <>
-                  <Ionicons
-                    name="checkmark-circle-outline"
-                    size={18}
-                    color={!selectedDoc || selectedDepts.length === 0 ? colors.textMuted : '#0B0F14'}
-                  />
-                  <Text
-                    style={[
-                      styles.registerBtnText,
-                      {
-                        color:
-                          !selectedDoc || selectedDepts.length === 0
-                            ? colors.textMuted
-                            : '#0B0F14',
-                      },
-                    ]}
-                  >
-                    Register Packer
-                  </Text>
+                  <Ionicons name="checkmark-circle-outline" size={18} color="#0B0F14" />
+                  <Text style={styles.primaryBtnText}>{t('Register Document')}</Text>
                 </>
               )}
             </TouchableOpacity>
           </View>
+        </ScrollView>
+      ) : (
+        /* SCAN TAB */
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <View style={[styles.searchBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Ionicons name="search" size={18} color={colors.textMuted} />
+            <TextInput
+              style={[styles.searchInput, { color: colors.textPrimary }]}
+              placeholder={t('Search document or department...')}
+              placeholderTextColor={colors.textMuted}
+              value={session.scanSearch}
+              onChangeText={session.setScanSearch}
+            />
+          </View>
 
-          {/* Registered Documents List Card */}
-          <View
-            style={[
-              styles.tableCard,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <View style={[styles.tableCardHeader, { borderBottomColor: colors.border }]}>
-              <View>
-                <Text style={[styles.tableCardTitle, { color: colors.textPrimary }]}>
-                  Registered Documents
-                </Text>
-                <Text style={[styles.tableCardSub, { color: colors.textMuted }]}>
-                  Documents registered to your ID ({registeredDocs.length})
-                </Text>
-              </View>
-              <TouchableOpacity onPress={loadData} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Ionicons name="refresh" size={16} color={colors.primary} />
-              </TouchableOpacity>
+          {scanRows.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="barcode-outline" size={40} color={colors.textMuted} />
+              <Text style={[styles.emptyText, { color: colors.textMuted }]}>{t('No registered documents found for scanning.')}</Text>
             </View>
-
-            {loading ? (
-              <View style={{ paddingVertical: 32, alignItems: 'center' }}>
-                <ActivityIndicator size="small" color={colors.primary} />
-              </View>
-            ) : registeredDocs.length === 0 ? (
-              <View style={styles.emptyWrap}>
-                <Ionicons name="folder-open-outline" size={32} color={colors.textMuted} />
-                <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>
-                  No registered documents
-                </Text>
-                <Text style={[styles.emptySub, { color: colors.textMuted }]}>
-                  Select and register a document above to begin
-                </Text>
-              </View>
-            ) : (
-              registeredDocs.map((doc, idx) => (
+          ) : (
+            <>
+              {/* Select All Toggle Bar */}
+              <TouchableOpacity
+                style={[
+                  styles.selectAllRow,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                  },
+                ]}
+                activeOpacity={0.7}
+                onPress={() => session.toggleAllScanRows(scanRows.map((r) => r.id))}
+              >
                 <View
-                  key={`${doc.doc_no}-${idx}`}
                   style={[
-                    styles.regItemRow,
+                    styles.checkbox,
                     {
-                      borderBottomColor: colors.border,
-                      backgroundColor: idx % 2 === 1 ? colors.surface2 : 'transparent',
+                      backgroundColor: isAllScanRowsSelected ? colors.primary : 'transparent',
+                      borderColor: isAllScanRowsSelected ? colors.primary : colors.border,
                     },
                   ]}
                 >
-                  <View style={[styles.regIconWrap, { backgroundColor: colors.primaryMuted }]}>
-                    <Ionicons name="document-text" size={16} color={colors.primary} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.regDocNo, { color: colors.textPrimary }]}>
-                      {doc.doc_no}
-                    </Text>
-                    <Text style={[styles.regDepts, { color: colors.textMuted }]} numberOfLines={1}>
-                      {doc.departments.join(', ')}
-                    </Text>
-                  </View>
-                  <View style={[styles.regBadge, { backgroundColor: colors.primaryMuted }]}>
-                    <Text style={[styles.regBadgeText, { color: colors.primary }]}>REGISTERED</Text>
-                  </View>
+                  {isAllScanRowsSelected && <Ionicons name="checkmark" size={14} color="#0B0F14" />}
                 </View>
-              ))
-            )}
-          </View>
-        </ScrollView>
-      ) : (
-        /* ════════════════════════════════════════════════════
-            SCAN TAB
-        ════════════════════════════════════════════════════ */
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Scan Intro Card */}
-          <View
-            style={[
-              styles.bannerBox,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <View style={[styles.bannerIconWrap, { backgroundColor: colors.primaryMuted }]}>
-              <Ionicons name="barcode" size={20} color={colors.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.bannerTitle, { color: colors.textPrimary }]}>Click to Scan</Text>
-              <Text style={[styles.bannerSub, { color: colors.textMuted }]}>
-                Select a registered document and departments below, then start scanning.
-              </Text>
-            </View>
-          </View>
-
-          {/* Search Box */}
-          <View
-            style={[
-              styles.searchWrap,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <Ionicons name="search" size={16} color={colors.textMuted} />
-            <TextInput
-              style={[styles.searchInput, { color: colors.textPrimary }]}
-              placeholder="Search registered documents..."
-              placeholderTextColor={colors.textMuted}
-              value={scanSearch}
-              onChangeText={setScanSearch}
-              autoCapitalize="characters"
-            />
-            {scanSearch ? (
-              <TouchableOpacity onPress={() => setScanSearch('')}>
-                <Ionicons name="close-circle" size={16} color={colors.textMuted} />
-              </TouchableOpacity>
-            ) : null}
-          </View>
-
-          {/* Document Table */}
-          <View
-            style={[
-              styles.tableCard,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            {/* Table Header with Select All */}
-            <View
-              style={[
-                styles.scanTableHeader,
-                {
-                  backgroundColor: colors.surface2,
-                  borderBottomColor: colors.border,
-                },
-              ]}
-            >
-              <TouchableOpacity
-                style={[
-                  styles.scanCheckbox,
-                  {
-                    backgroundColor:
-                      selectedScanDoc &&
-                      selectedScanDepts.length === selectedScanDoc.departments.length
-                        ? colors.primary
-                        : 'transparent',
-                    borderColor:
-                      selectedScanDoc &&
-                      selectedScanDepts.length === selectedScanDoc.departments.length
-                        ? colors.primary
-                        : colors.border,
-                  },
-                ]}
-                onPress={toggleAllScanDepts}
-              >
-                {selectedScanDoc &&
-                  selectedScanDepts.length === selectedScanDoc.departments.length && (
-                    <Ionicons name="checkmark" size={12} color="#0B0F14" />
-                  )}
-              </TouchableOpacity>
-              <Text style={[styles.scanThCell, { color: colors.textMuted, flex: 1 }]}>
-                DOC NO
-              </Text>
-              <Text style={[styles.scanThCell, { color: colors.textMuted }]}>DEPARTMENT</Text>
-            </View>
-
-            {scanRows.length === 0 ? (
-              <View style={styles.emptyWrap}>
-                <Ionicons name="document-text-outline" size={32} color={colors.textMuted} />
-                <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>
-                  No registered documents
+                <Text style={[styles.selectAllText, { color: colors.textPrimary }]}>
+                  {isAllScanRowsSelected ? t('Deselect All Documents') : t('Select All Documents')}
                 </Text>
-                <Text style={[styles.emptySub, { color: colors.textMuted }]}>
-                  Register a document first in the Register tab
+                <Text style={[styles.countBadge, { color: colors.textMuted }]}>
+                  {selectedScanRows.length}/{scanRows.length}
                 </Text>
-              </View>
-            ) : (
-              scanRows.map((row, idx) => {
-                const docSelected = selectedScanDocNo === row.doc_no;
-                const deptSelected = docSelected && selectedScanDepts.includes(row.department);
+              </TouchableOpacity>
+
+              {/* Document Checkbox Items */}
+              {scanRows.map((row) => {
+                const isSelected = session.selectedScanRowIds.includes(row.id);
 
                 return (
                   <TouchableOpacity
                     key={row.id}
                     style={[
-                      styles.scanTableRow,
+                      styles.scanRowCard,
                       {
-                        borderBottomColor: colors.border,
-                        backgroundColor: docSelected ? colors.primaryMuted : 'transparent',
+                        backgroundColor: isSelected ? colors.primaryMuted : colors.surface,
+                        borderColor: isSelected ? colors.primary : colors.border,
                       },
                     ]}
                     activeOpacity={0.7}
-                    onPress={() => handleScanRowPress(row)}
+                    onPress={() => session.toggleScanRow(row.id)}
                   >
                     <View
                       style={[
-                        styles.scanCheckbox,
+                        styles.checkbox,
                         {
-                          backgroundColor: deptSelected ? colors.primary : 'transparent',
-                          borderColor: deptSelected ? colors.primary : colors.border,
+                          backgroundColor: isSelected ? colors.primary : 'transparent',
+                          borderColor: isSelected ? colors.primary : colors.border,
                         },
                       ]}
                     >
-                      {deptSelected && <Ionicons name="checkmark" size={12} color="#0B0F14" />}
+                      {isSelected && <Ionicons name="checkmark" size={14} color="#0B0F14" />}
                     </View>
 
-                    <Text
-                      style={[
-                        styles.scanDocText,
-                        { color: colors.textPrimary },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {row.doc_no}
-                    </Text>
-
-                    <View
-                      style={[
-                        styles.scanDeptTag,
-                        {
-                          backgroundColor: deptSelected ? colors.primary : colors.surface3,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.scanDeptTagText,
-                          {
-                            color: deptSelected ? '#0B0F14' : colors.textSecondary,
-                          },
-                        ]}
-                      >
-                        {row.department}
-                      </Text>
+                    <View style={styles.scanRowContent}>
+                      <Text style={[styles.docNoText, { color: colors.textPrimary }]}>{row.doc_no}</Text>
+                      <Text style={[styles.deptText, { color: colors.textSecondary }]}>{row.department}</Text>
                     </View>
+                    {row.organization_name ? (
+                      <Text style={[styles.orgText, { color: colors.textMuted }]}>{row.organization_name}</Text>
+                    ) : null}
                   </TouchableOpacity>
                 );
-              })
-            )}
-          </View>
-
-          {/* Selected Document Summary Card */}
-          {selectedScanDoc && (
-            <View
-              style={[
-                styles.selectedDocCard,
-                {
-                  backgroundColor: colors.primaryMuted,
-                  borderColor: `${colors.primary}40`,
-                },
-              ]}
-            >
-              <Ionicons name="document-text" size={20} color={colors.primary} />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.selectedDocLabel, { color: colors.primary }]}>
-                  SELECTED DOCUMENT
-                </Text>
-                <Text style={[styles.selectedDocNo, { color: colors.textPrimary }]}>
-                  {selectedScanDoc.doc_no}
-                </Text>
-                <Text style={[styles.selectedOrgName, { color: colors.textMuted }]}>
-                  {selectedScanDoc.organization_name} · {selectedScanDepts.length} dept(s)
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => {
-                  setSelectedScanDocNo(null);
-                  setSelectedScanDepts([]);
-                }}
-              >
-                <Ionicons name="close-circle" size={20} color={colors.textMuted} />
-              </TouchableOpacity>
-            </View>
+              })}
+            </>
           )}
 
-          {/* Start Scan Button */}
-          <TouchableOpacity
-            style={[
-              styles.startScanBtn,
-              { backgroundColor: colors.primary },
-              (!selectedScanDocNo || selectedScanDepts.length === 0) && {
-                backgroundColor: colors.surface3,
-              },
-            ]}
-            disabled={!selectedScanDocNo || selectedScanDepts.length === 0}
-            activeOpacity={0.85}
-            onPress={handleStartScan}
-          >
-            <Ionicons
-              name="barcode"
-              size={18}
-              color={!selectedScanDocNo || selectedScanDepts.length === 0 ? colors.textMuted : '#0B0F14'}
-            />
-            <Text
-              style={[
-                styles.startScanBtnText,
-                {
-                  color:
-                    !selectedScanDocNo || selectedScanDepts.length === 0
-                      ? colors.textMuted
-                      : '#0B0F14',
-                },
-              ]}
-            >
-              Click to Start Scanning
-            </Text>
-            <Ionicons
-              name="arrow-forward"
-              size={16}
-              color={!selectedScanDocNo || selectedScanDepts.length === 0 ? colors.textMuted : '#0B0F14'}
-            />
-          </TouchableOpacity>
+          {selectedScanRows.length > 0 && (
+            <TouchableOpacity style={[styles.startScanBtn, { backgroundColor: colors.primary }]} onPress={handleStartScan}>
+              <Ionicons name="barcode" size={18} color="#0B0F14" />
+              <Text style={styles.startScanBtnText}>
+                {t('Start Batch Scanning')} ({selectedScanRows.length})
+              </Text>
+            </TouchableOpacity>
+          )}
         </ScrollView>
       )}
 
-      {/* ══ Document Select Sheet (Safe Keyboard Avoidance) ══ */}
+      {/* Sheets & Modals */}
       <DocumentSelectSheet
-        visible={docSheetOpen}
-        onClose={() => setDocSheetOpen(false)}
-        documents={documents}
-        onSelectDocument={handleSelectDoc}
-        title="Select Document"
-        accentColor={colors.primary}
-        accentMutedColor={colors.primaryMuted}
+        visible={session.docSheetOpen}
+        documents={session.documents}
+        onSelectDocument={session.handleSelectDoc}
+        onClose={() => session.setDocSheetOpen(false)}
       />
 
-      {/* ══ Department Multi-Select Sheet ══ */}
       <DepartmentSelectSheet
-        visible={deptSheetOpen}
-        onClose={() => setDeptSheetOpen(false)}
-        departments={availableDepts}
-        selectedDepartments={selectedDepts}
-        onToggleDepartment={toggleDept}
-        onToggleAll={toggleAllDepts}
-        docNumber={selectedDoc?.doc_no || selectedDoc?.document_number}
-        accentColor={colors.primary}
-        accentMutedColor={colors.primaryMuted}
+        visible={session.deptSheetOpen}
+        departments={session.availableDepts}
+        selectedDepartments={session.selectedDepts}
+        onToggleDepartment={session.toggleDept}
+        onToggleAll={session.toggleAllDepts}
+        onClose={() => session.setDeptSheetOpen(false)}
       />
 
-      {/* ══ Data Sync Modal with Progressive Bar ══ */}
       <DataSyncModal
-        visible={syncModalVisible}
-        documentNumber={syncDocNo}
-        progress={syncProgress}
-        statusText={syncStatusText}
-        itemCount={syncItemCount}
-        isComplete={syncComplete}
+        visible={session.syncModalVisible}
+        documentNumber={session.syncDocNo}
+        progress={session.syncProgress}
+        statusText={session.syncStatusText}
+        itemCount={session.syncItemCount}
+        isComplete={session.syncComplete}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
-  header: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  backBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  backBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 2,
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  badgeText: {
-    fontSize: 10,
-    fontFamily: monoFont,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-  },
-  tabBar: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: 12,
-    paddingBottom: 10,
-  },
-  tabTrack: {
-    flexDirection: 'row',
-    padding: 3,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-  },
-  tabBtn: {
-    flex: 1,
+  root: { flex: 1 },
+  header: { borderBottomWidth: 1, paddingHorizontal: spacing.lg, paddingBottom: 12 },
+  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  backBtnText: { fontSize: 13, fontWeight: '600' },
+  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
+  liveDot: { width: 6, height: 6, borderRadius: 3 },
+  badgeText: { fontSize: 10, fontFamily: monoFont, fontWeight: '700' },
+  title: { fontSize: 20, fontFamily: monoFont, fontWeight: '800' },
+  tabBar: { paddingHorizontal: spacing.lg, marginVertical: 12 },
+  tabTrack: { flexDirection: 'row', borderRadius: borderRadius.md, borderWidth: 1, padding: 4 },
+  tabBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, borderRadius: borderRadius.sm, gap: 6 },
+  tabBtnText: { fontSize: 13, fontFamily: monoFont, fontWeight: '700' },
+  scrollContent: { paddingHorizontal: spacing.lg, paddingBottom: 40 },
+  bannerBox: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: borderRadius.md, borderWidth: 1, gap: 10, marginBottom: 16 },
+  bannerIconWrap: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  bannerTitle: { fontSize: 13, fontFamily: monoFont, fontWeight: '800' },
+  bannerSub: { fontSize: 11, fontFamily: monoFont, marginTop: 2 },
+  successBox: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: borderRadius.md, borderWidth: 1, gap: 8, marginBottom: 16 },
+  successText: { fontSize: 12, fontFamily: monoFont, fontWeight: '700' },
+  card: { padding: 16, borderRadius: borderRadius.md, borderWidth: 1 },
+  cardTitle: { fontSize: 12, fontFamily: monoFont, fontWeight: '700', marginBottom: 8 },
+  selectInput: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, borderRadius: borderRadius.sm, borderWidth: 1, gap: 10 },
+  selectInputText: { flex: 1, fontSize: 13, fontFamily: monoFont },
+  primaryBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 20, paddingVertical: 14, borderRadius: borderRadius.md, gap: 8 },
+  btnDisabled: { opacity: 0.5 },
+  primaryBtnText: { fontSize: 14, fontFamily: monoFont, fontWeight: '800', color: '#0B0F14' },
+  searchBox: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderRadius: borderRadius.md, borderWidth: 1, gap: 8, marginBottom: 14 },
+  searchInput: { flex: 1, fontSize: 13, fontFamily: monoFont },
+  emptyState: { paddingVertical: 40, alignItems: 'center' },
+  emptyText: { fontSize: 12, fontFamily: monoFont, marginTop: 8 },
+  scanRowCard: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: borderRadius.md, borderWidth: 1, marginBottom: 10 },
+  scanRowContent: { flex: 1 },
+  docNoText: { fontSize: 14, fontFamily: monoFont, fontWeight: '800' },
+  deptText: { fontSize: 12, fontFamily: monoFont, marginTop: 2 },
+  orgText: { fontSize: 11, fontFamily: monoFont, marginLeft: 8 },
+  selectAllRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: borderRadius.md,
-    gap: 6,
-  },
-  tabBtnText: {
-    fontSize: 13,
-    fontFamily: monoFont,
-    fontWeight: '700',
-  },
-  scrollContent: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xs,
-    paddingBottom: 40,
-  },
-  bannerBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    gap: 12,
-    marginBottom: spacing.md,
-  },
-  bannerIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: borderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bannerTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  bannerSub: {
-    fontSize: 11,
-    marginTop: 2,
-    lineHeight: 15,
-  },
-  successBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    gap: 8,
-    marginBottom: spacing.md,
-  },
-  successText: {
-    fontSize: 12,
-    fontFamily: monoFont,
-    fontWeight: '600',
-    flex: 1,
-  },
-  formCard: {
-    borderRadius: borderRadius.xl,
-    padding: spacing.lg,
-    borderWidth: 1,
-    marginBottom: spacing.md,
-  },
-  formGroup: {
-    marginBottom: spacing.md,
-  },
-  fieldLabel: {
-    fontSize: 10,
-    fontFamily: monoFont,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-    marginBottom: 6,
-  },
-  selectBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    height: 48,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1.5,
-  },
-  selectBtnLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  selectBtnText: {
-    fontSize: 13,
-    fontFamily: monoFont,
-  },
-  orgPreviewBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    gap: 10,
-    marginTop: 8,
-  },
-  orgLabel: {
-    fontSize: 9,
-    fontFamily: monoFont,
-    fontWeight: '800',
-  },
-  orgText: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 1,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 8,
-  },
-  deptChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    gap: 6,
-  },
-  deptChipText: {
-    fontSize: 11,
-    fontFamily: monoFont,
-    fontWeight: '700',
-  },
-  registerBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: borderRadius.lg,
-    gap: 8,
-    marginTop: spacing.xs,
-  },
-  registerBtnText: {
-    fontSize: 14,
-    fontFamily: monoFont,
-    fontWeight: '800',
-  },
-  tableCard: {
-    borderRadius: borderRadius.xl,
-    borderWidth: 1,
-    overflow: 'hidden',
-    marginBottom: spacing.md,
-  },
-  tableCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: 14,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-  },
-  tableCardTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  tableCardSub: {
-    fontSize: 10,
-    fontFamily: monoFont,
-    marginTop: 1,
-  },
-  emptyWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 36,
-    gap: 4,
-  },
-  emptyTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    marginTop: 4,
-  },
-  emptySub: {
-    fontSize: 11,
-    fontFamily: monoFont,
-  },
-  regItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    gap: 10,
-  },
-  regIconWrap: {
-    width: 32,
-    height: 32,
     borderRadius: borderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  regDocNo: {
-    fontSize: 12,
-    fontFamily: monoFont,
-    fontWeight: '700',
-  },
-  regDepts: {
-    fontSize: 10,
-    marginTop: 1,
-  },
-  regBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: borderRadius.sm,
-  },
-  regBadgeText: {
-    fontSize: 8,
-    fontFamily: monoFont,
-    fontWeight: '800',
-  },
-  searchWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.lg,
     borderWidth: 1,
-    height: 44,
-    gap: 8,
-    marginBottom: spacing.md,
+    marginBottom: 12,
   },
-  searchInput: {
+  selectAllText: {
     flex: 1,
     fontSize: 13,
     fontFamily: monoFont,
+    fontWeight: '700',
   },
-  scanTableHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    gap: 10,
+  countBadge: {
+    fontSize: 11,
+    fontFamily: monoFont,
   },
-  scanCheckbox: {
-    width: 18,
-    height: 18,
-    borderRadius: 4,
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 12,
   },
-  scanThCell: {
-    fontSize: 10,
-    fontFamily: monoFont,
-    fontWeight: '800',
-  },
-  scanTableRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    gap: 10,
-  },
-  scanDocText: {
-    fontSize: 12,
-    fontFamily: monoFont,
-    fontWeight: '700',
-    flex: 1,
-  },
-  scanDeptTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: borderRadius.sm,
-  },
-  scanDeptTagText: {
-    fontSize: 10,
-    fontFamily: monoFont,
-    fontWeight: '700',
-  },
-  selectedDocCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    gap: 10,
-    marginBottom: spacing.md,
-  },
-  selectedDocLabel: {
-    fontSize: 9,
-    fontFamily: monoFont,
-    fontWeight: '800',
-  },
-  selectedDocNo: {
-    fontSize: 14,
-    fontFamily: monoFont,
-    fontWeight: '800',
-    marginTop: 1,
-  },
-  selectedOrgName: {
-    fontSize: 11,
-    marginTop: 1,
-  },
-  startScanBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: borderRadius.lg,
-    gap: 8,
-    marginBottom: spacing.lg,
-  },
-  startScanBtnText: {
-    fontSize: 14,
-    fontFamily: monoFont,
-    fontWeight: '800',
-  },
+  startScanBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: borderRadius.md, gap: 8, marginTop: 16 },
+  startScanBtnText: { fontSize: 14, fontFamily: monoFont, fontWeight: '800', color: '#0B0F14' },
 });

@@ -337,11 +337,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   label: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '700',
     color: colors.textPrimary,
     flex: 1,
     marginRight: 8,
+    letterSpacing: 0.3,
   },
   multiTag: {
     fontSize: 10,

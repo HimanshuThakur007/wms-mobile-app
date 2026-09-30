@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/context/ThemeContext';
+import { useLanguage } from '../../src/context/LanguageContext';
 import { BrandLogo } from '../../src/components/common/BrandLogo';
 import { HeaderActions } from '../../src/components/common/HeaderActions';
 import { borderRadius, spacing } from '../../src/constants/theme';
@@ -22,6 +23,7 @@ export default function OperationsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { colors } = useTheme();
+  const { t } = useLanguage();
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: Math.max(insets.top, 16) }]}>
@@ -30,8 +32,8 @@ export default function OperationsScreen() {
         <View style={styles.headerLeft}>
           <BrandLogo size={32} rounded />
           <View>
-            <Text style={[styles.title, { color: colors.textPrimary }]}>Floor Operations</Text>
-            <Text style={[styles.subtitle, { color: colors.textMuted }]}>Packing, Logistics & Execution</Text>
+            <Text style={[styles.title, { color: colors.textPrimary }]}>{t('Floor Operations')}</Text>
+            <Text style={[styles.subtitle, { color: colors.textMuted }]}>{t('Packing, Logistics & Execution')}</Text>
           </View>
         </View>
         <HeaderActions />
@@ -42,7 +44,7 @@ export default function OperationsScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Packing Section Title */}
-        <Text style={[styles.sectionHeading, { color: colors.textMuted }]}>PACKING MODULES</Text>
+        <Text style={[styles.sectionHeading, { color: colors.textMuted }]}>{t('PACKING MODULES')}</Text>
 
         {/* WMS Packing Node Card */}
         <View style={[styles.categoryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -51,11 +53,11 @@ export default function OperationsScreen() {
               <Ionicons name="cube" size={18} color={colors.primary} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.categoryTitle, { color: colors.textPrimary }]}>WMS Packing</Text>
-              <Text style={[styles.categorySub, { color: colors.textMuted }]}>Carton registration & SKU package scanning</Text>
+              <Text style={[styles.categoryTitle, { color: colors.textPrimary }]}>{t('WMS Packing')}</Text>
+              <Text style={[styles.categorySub, { color: colors.textMuted }]}>{t('Carton registration & SKU package scanning')}</Text>
             </View>
             <View style={[styles.screenCountBadge, { backgroundColor: colors.primaryMuted }]}>
-              <Text style={[styles.screenCountText, { color: colors.primary }]}>2 Screens</Text>
+              <Text style={[styles.screenCountText, { color: colors.primary }]}>2 {t('Screens', 'Screens')}</Text>
             </View>
           </View>
 
@@ -67,8 +69,8 @@ export default function OperationsScreen() {
             >
               <Ionicons name="create-outline" size={16} color={colors.primary} />
               <View>
-                <Text style={[styles.subActionTitle, { color: colors.textPrimary }]}>Registration</Text>
-                <Text style={[styles.subActionSub, { color: colors.textMuted }]}>Document & Dept</Text>
+                <Text style={[styles.subActionTitle, { color: colors.textPrimary }]}>{t('Registration')}</Text>
+                <Text style={[styles.subActionSub, { color: colors.textMuted }]}>{t('Document & Dept')}</Text>
               </View>
             </TouchableOpacity>
 
@@ -79,8 +81,8 @@ export default function OperationsScreen() {
             >
               <Ionicons name="barcode-outline" size={16} color={colors.primary} />
               <View>
-                <Text style={[styles.subActionTitle, { color: colors.textPrimary }]}>Scanning</Text>
-                <Text style={[styles.subActionSub, { color: colors.textMuted }]}>Verify Items</Text>
+                <Text style={[styles.subActionTitle, { color: colors.textPrimary }]}>{t('Scanning')}</Text>
+                <Text style={[styles.subActionSub, { color: colors.textMuted }]}>{t('Verify Items')}</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -93,11 +95,11 @@ export default function OperationsScreen() {
               <Ionicons name="boat" size={18} color={colors.amber} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.categoryTitle, { color: colors.textPrimary }]}>Container Packing</Text>
-              <Text style={[styles.categorySub, { color: colors.textMuted }]}>Seal assignment & pallet freight verification</Text>
+              <Text style={[styles.categoryTitle, { color: colors.textPrimary }]}>{t('Container Packing')}</Text>
+              <Text style={[styles.categorySub, { color: colors.textMuted }]}>{t('Seal assignment & pallet freight verification')}</Text>
             </View>
             <View style={[styles.screenCountBadge, { backgroundColor: colors.amberMuted }]}>
-              <Text style={[styles.screenCountText, { color: colors.amber }]}>2 Screens</Text>
+              <Text style={[styles.screenCountText, { color: colors.amber }]}>2 {t('Screens', 'Screens')}</Text>
             </View>
           </View>
 
@@ -109,8 +111,8 @@ export default function OperationsScreen() {
             >
               <Ionicons name="document-text-outline" size={16} color={colors.amber} />
               <View>
-                <Text style={[styles.subActionTitle, { color: colors.textPrimary }]}>Registration</Text>
-                <Text style={[styles.subActionSub, { color: colors.textMuted }]}>Document & Dept</Text>
+                <Text style={[styles.subActionTitle, { color: colors.textPrimary }]}>{t('Registration')}</Text>
+                <Text style={[styles.subActionSub, { color: colors.textMuted }]}>{t('Document & Dept')}</Text>
               </View>
             </TouchableOpacity>
 
@@ -121,8 +123,8 @@ export default function OperationsScreen() {
             >
               <Ionicons name="qr-code-outline" size={16} color={colors.amber} />
               <View>
-                <Text style={[styles.subActionTitle, { color: colors.textPrimary }]}>Scanning</Text>
-                <Text style={[styles.subActionSub, { color: colors.textMuted }]}>Pallet Loading</Text>
+                <Text style={[styles.subActionTitle, { color: colors.textPrimary }]}>{t('Scanning')}</Text>
+                <Text style={[styles.subActionSub, { color: colors.textMuted }]}>{t('Pallet Loading')}</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -135,11 +137,11 @@ export default function OperationsScreen() {
               <Ionicons name="layers" size={18} color={colors.violet} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.categoryTitle, { color: colors.textPrimary }]}>Put Away Module</Text>
-              <Text style={[styles.categorySub, { color: colors.textMuted }]}>Multi-GRN document allocation & Bin scanning</Text>
+              <Text style={[styles.categoryTitle, { color: colors.textPrimary }]}>{t('Put Away Module', 'Putaway Setup')}</Text>
+              <Text style={[styles.categorySub, { color: colors.textMuted }]}>{t('Multi-GRN document allocation & Bin scanning')}</Text>
             </View>
             <View style={[styles.screenCountBadge, { backgroundColor: colors.violetMuted }]}>
-              <Text style={[styles.screenCountText, { color: colors.violet }]}>2 Screens</Text>
+              <Text style={[styles.screenCountText, { color: colors.violet }]}>2 {t('Screens', 'Screens')}</Text>
             </View>
           </View>
 
@@ -151,8 +153,8 @@ export default function OperationsScreen() {
             >
               <Ionicons name="grid-outline" size={16} color={colors.violet} />
               <View>
-                <Text style={[styles.subActionTitle, { color: colors.textPrimary }]}>Setup & Bin</Text>
-                <Text style={[styles.subActionSub, { color: colors.textMuted }]}>Multi-GRN Select</Text>
+                <Text style={[styles.subActionTitle, { color: colors.textPrimary }]}>{t('Setup & Bin')}</Text>
+                <Text style={[styles.subActionSub, { color: colors.textMuted }]}>{t('Multi-GRN Select')}</Text>
               </View>
             </TouchableOpacity>
 
@@ -163,8 +165,8 @@ export default function OperationsScreen() {
             >
               <Ionicons name="barcode-outline" size={16} color={colors.violet} />
               <View>
-                <Text style={[styles.subActionTitle, { color: colors.textPrimary }]}>Scanning</Text>
-                <Text style={[styles.subActionSub, { color: colors.textMuted }]}>Bin Allocation</Text>
+                <Text style={[styles.subActionTitle, { color: colors.textPrimary }]}>{t('Scanning')}</Text>
+                <Text style={[styles.subActionSub, { color: colors.textMuted }]}>{t('Bin Allocation')}</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -172,7 +174,7 @@ export default function OperationsScreen() {
 
         {/* Logistics & Warehouse Control */}
         <Text style={[styles.sectionHeading, { color: colors.textMuted, marginTop: spacing.md }]}>
-          LOGISTICS & WAREHOUSE CONTROL
+          {t('LOGISTICS & WAREHOUSE CONTROL')}
         </Text>
 
         {[

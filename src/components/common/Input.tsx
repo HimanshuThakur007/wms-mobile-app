@@ -105,10 +105,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   label: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '700',
     marginBottom: spacing.xs + 2,
-    letterSpacing: 0.2,
+    letterSpacing: 0.3,
   },
   inputWrapper: {
     flexDirection: 'row',

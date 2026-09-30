@@ -183,7 +183,14 @@ export const borderRadius = {
   full: 9999,
 };
 
-export const monoFont = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
+export const systemFont = Platform.select({
+  ios: 'System',
+  android: 'sans-serif',
+  default: 'System',
+});
+
+export const monoFont = systemFont;
+export const codeFont = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
 
 export const shadows = {
   sm: {

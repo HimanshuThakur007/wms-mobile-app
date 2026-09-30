@@ -13,10 +13,13 @@
       "backgroundColor": "#0F172A"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.market99.wmsapp",
+      "buildNumber": "1"
     },
     "android": {
       "package": "com.market99.wmsapp",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/logo1.png",
         "backgroundColor": "#0F172A"
@@ -27,8 +30,15 @@
       "output": "single",
       "favicon": "./assets/logo1.png"
     },
+    "updates": {
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": "1.0.0",
     "plugins": [
       "expo-router",
+      "expo-updates",
       [
         "expo-camera",
         {

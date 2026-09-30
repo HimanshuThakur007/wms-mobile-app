@@ -4,6 +4,7 @@ import { useRouter, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { LanguageToggle } from './LanguageToggle';
 
 interface HeaderActionsProps {
@@ -19,17 +20,18 @@ export const HeaderActions: React.FC<HeaderActionsProps> = ({
   const pathname = usePathname();
   const { logout } = useAuth();
   const { colors } = useTheme();
+  const { t } = useLanguage();
 
   const isSettings = pathname === '/(tabs)/settings' || pathname === '/settings';
 
   const handleLogout = () => {
     Alert.alert(
-      'Sign Out',
-      'Are you sure you want to end your terminal session?',
+      t('Sign Out'),
+      t('Are you sure you want to end your terminal session?'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('Cancel'), style: 'cancel' },
         {
-          text: 'Sign Out',
+          text: t('Sign Out'),
           style: 'destructive',
           onPress: () => {
             logout();

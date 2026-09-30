@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { borderRadius, spacing } from '../../constants/theme';
 
 interface DepartmentSelectSheetProps {
@@ -29,7 +30,7 @@ interface DepartmentSelectSheetProps {
   accentMutedColor?: string;
 }
 
-const monoFont = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
+const monoFont = Platform.select({ ios: 'System', android: 'sans-serif', default: 'System' });
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
 export const DepartmentSelectSheet: React.FC<DepartmentSelectSheetProps> = ({
@@ -45,6 +46,7 @@ export const DepartmentSelectSheet: React.FC<DepartmentSelectSheetProps> = ({
 }) => {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { t } = useLanguage();
   const [search, setSearch] = useState('');
 
   const accent = accentColor || colors.primary;
@@ -87,11 +89,11 @@ export const DepartmentSelectSheet: React.FC<DepartmentSelectSheetProps> = ({
               <View style={styles.header}>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.title, { color: colors.textPrimary }]}>
-                    Select Departments
+                    {t('Select Departments')}
                   </Text>
                   {docNumber ? (
                     <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-                      Doc: {docNumber}
+                      {t('Doc:')} {docNumber}
                     </Text>
                   ) : null}
                 </View>
@@ -118,7 +120,7 @@ export const DepartmentSelectSheet: React.FC<DepartmentSelectSheetProps> = ({
                   <Ionicons name="search" size={16} color={colors.textMuted} />
                   <TextInput
                     style={[styles.searchInput, { color: colors.textPrimary }]}
-                    placeholder="Search departments..."
+                    placeholder={t('Search departments...')}
                     placeholderTextColor={colors.textMuted}
                     value={search}
                     onChangeText={setSearch}
@@ -155,7 +157,7 @@ export const DepartmentSelectSheet: React.FC<DepartmentSelectSheetProps> = ({
                     )}
                   </View>
                   <Text style={[styles.selectAllText, { color: colors.textPrimary }]}>
-                    {allSelected ? 'Deselect All Departments' : 'Select All Departments'}
+                    {allSelected ? t('Deselect All Departments') : t('Select All Departments')}
                   </Text>
                   <Text style={[styles.countBadge, { color: colors.textMuted }]}>
                     {selectedDepartments.length}/{departments.length}
@@ -173,7 +175,7 @@ export const DepartmentSelectSheet: React.FC<DepartmentSelectSheetProps> = ({
                 {filteredDepts.length === 0 ? (
                   <View style={styles.emptyWrap}>
                     <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-                      No departments available
+                      {t('No departments available')}
                     </Text>
                   </View>
                 ) : (
@@ -242,7 +244,7 @@ export const DepartmentSelectSheet: React.FC<DepartmentSelectSheetProps> = ({
                   onPress={onClose}
                 >
                   <Text style={styles.doneBtnText}>
-                    Confirm Selection ({selectedDepartments.length})
+                    {t('Confirm Selection')} ({selectedDepartments.length})
                   </Text>
                 </TouchableOpacity>
               </View>

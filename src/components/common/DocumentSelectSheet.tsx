@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { DocumentType } from '../../types';
 import { borderRadius, spacing } from '../../constants/theme';
 
@@ -28,7 +29,7 @@ interface DocumentSelectSheetProps {
   accentMutedColor?: string;
 }
 
-const monoFont = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
+const monoFont = Platform.select({ ios: 'System', android: 'sans-serif', default: 'System' });
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
 export const DocumentSelectSheet: React.FC<DocumentSelectSheetProps> = ({
@@ -42,7 +43,10 @@ export const DocumentSelectSheet: React.FC<DocumentSelectSheetProps> = ({
 }) => {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { t } = useLanguage();
   const [search, setSearch] = useState('');
+
+  const displayTitle = t(title);
 
   const accent = accentColor || colors.primary;
   const muted = accentMutedColor || colors.primaryMuted;
@@ -94,9 +98,9 @@ export const DocumentSelectSheet: React.FC<DocumentSelectSheetProps> = ({
               {/* Header */}
               <View style={styles.header}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.title, { color: colors.textPrimary }]}>{title}</Text>
+                  <Text style={[styles.title, { color: colors.textPrimary }]}>{displayTitle}</Text>
                   <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-                    One document at a time · {filteredDocs.length} available
+                    {t('One document at a time')} · {filteredDocs.length} {t('available')}
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -121,7 +125,7 @@ export const DocumentSelectSheet: React.FC<DocumentSelectSheetProps> = ({
                 <Ionicons name="search" size={16} color={colors.textMuted} />
                 <TextInput
                   style={[styles.searchInput, { color: colors.textPrimary }]}
-                  placeholder="Search document number or client..."
+                  placeholder={t('Search document number or client...')}
                   placeholderTextColor={colors.textMuted}
                   value={search}
                   onChangeText={setSearch}
@@ -147,10 +151,10 @@ export const DocumentSelectSheet: React.FC<DocumentSelectSheetProps> = ({
                   <View style={styles.emptyWrap}>
                     <Ionicons name="document-text-outline" size={32} color={colors.textMuted} />
                     <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                      No documents found
+                      {t('No documents found')}
                     </Text>
                     <Text style={[styles.emptySub, { color: colors.textMuted }]}>
-                      Try searching with another document number
+                      {t('Try searching with another document number')}
                     </Text>
                   </View>
                 ) : (
@@ -197,7 +201,7 @@ export const DocumentSelectSheet: React.FC<DocumentSelectSheetProps> = ({
                           </Text>
                           {depts.length > 0 && (
                             <Text style={[styles.deptCount, { color: colors.textMuted }]}>
-                              {depts.length} department{depts.length !== 1 ? 's' : ''} available
+                              {depts.length} {t('department(s) available')}
                             </Text>
                           )}
                         </View>

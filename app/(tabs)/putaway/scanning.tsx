@@ -19,14 +19,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../../src/context/AuthContext';
 import { useTheme } from '../../../src/context/ThemeContext';
 import { useLanguage } from '../../../src/context/LanguageContext';
-import { BrandLogo } from '../../../src/components/common/BrandLogo';
-import { HeaderActions } from '../../../src/components/common/HeaderActions';
+import { AppHeader } from '../../../src/components/common/AppHeader';
 import {
   findPutawayItemLocalOrRemote,
   loadPutawayDataFromStorage,
   saveInProgressScannedItems,
   loadInProgressScannedItems,
   clearInProgressScannedItems,
+  submitGrn,
+  PutawayGrnItem,
 } from '../../../src/services/api';
 import { CancelItemModal } from '../../../src/components/scanning/modals/CancelItemModal';
 import { EditQtyModal } from '../../../src/components/scanning/modals/EditQtyModal';
@@ -53,7 +54,7 @@ export default function PutawayScanningScreen() {
   const params = useLocalSearchParams();
   const { user } = useAuth();
   const { colors, isDark } = useTheme();
-  const { t } = useLanguage();
+  const { t, isHindi } = useLanguage();
 
   const grnNumberParam = String(params.grn_number || params.grn_numbers || 'GRN-1778').trim();
   const vouchDateParam = String(params.vouch_date || '');
@@ -85,6 +86,7 @@ export default function PutawayScanningScreen() {
   const [scanning, setScanning] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [allScannedItems, setAllScannedItems] = useState<PutawayScannedItem[]>([]);
+  const [cachedGrnItems, setCachedGrnItems] = useState<PutawayGrnItem[]>([]);
 
   const inputRef = useRef<TextInput>(null);
   const scanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -122,7 +124,10 @@ export default function PutawayScanningScreen() {
     const restoreSavedSession = async () => {
       try {
         isRestoringSessionRef.current = true;
-        await loadPutawayDataFromStorage(activeGrn);
+        const loadedGrnData = await loadPutawayDataFromStorage(activeGrn);
+        if (loadedGrnData && Array.isArray(loadedGrnData)) {
+          setCachedGrnItems(loadedGrnData);
+        }
         const savedSession = await loadInProgressScannedItems(activeGrn);
         if (savedSession && Array.isArray(savedSession.items) && savedSession.items.length > 0) {
           setAllScannedItems(savedSession.items);
@@ -239,8 +244,10 @@ export default function PutawayScanningScreen() {
       // Validate if the item belongs to this GRN
       if (!localLookup || localLookup.status !== true || !localData || !localData.itemcode) {
         Alert.alert(
-          'Item Not Found in GRN',
-          `Item "${trimmed}" is not found in the assigned items for GRN ${activeGrn}. Please scan a valid item.`
+          t('Item Not Found in GRN'),
+          isHindi
+            ? `आइटम "${trimmed}" GRN ${activeGrn} के लिए आवंटित आइटमों में नहीं मिला। कृपया एक मान्य आइटम स्कैन करें।`
+            : `Item "${trimmed}" is not found in the assigned items for GRN ${activeGrn}. Please scan a valid item.`
         );
         clearAndRefocus();
         return;
@@ -260,12 +267,14 @@ export default function PutawayScanningScreen() {
 
       if (!isDeptMatched) {
         Alert.alert(
-          'Department Warning',
-          `Item "${trimmed}" belongs to "${localData.department}", while GRN is assigned to "${departments.join(', ')}". Do you want to proceed?`,
+          t('Department Warning'),
+          isHindi
+            ? `आइटम "${trimmed}" विभाग "${localData.department}" का है, जबकि GRN "${departments.join(', ')}" को आवंटित है। क्या आप आगे बढ़ना चाहते हैं?`
+            : `Item "${trimmed}" belongs to "${localData.department}", while GRN is assigned to "${departments.join(', ')}". Do you want to proceed?`,
           [
-            { text: 'Cancel', style: 'cancel', onPress: () => clearAndRefocus() },
+            { text: t('Cancel'), style: 'cancel', onPress: () => clearAndRefocus() },
             {
-              text: 'Proceed',
+              text: t('Confirm'),
               onPress: () => processValidScan(trimmed, itemName, reqQty, itemDept),
             },
           ]
@@ -275,7 +284,7 @@ export default function PutawayScanningScreen() {
 
       processValidScan(trimmed, itemName, reqQty, itemDept, localData);
     } catch (err: any) {
-      Alert.alert('Scan Error', err?.message || 'Unable to process barcode.');
+      Alert.alert(t('Scan Error'), err?.message || t('Unable to process barcode.'));
       clearAndRefocus();
     } finally {
       processingRef.current = false;
@@ -392,7 +401,7 @@ export default function PutawayScanningScreen() {
     if (!duplicateItem) return;
     const qty = parseInt(duplicateQty, 10);
     if (isNaN(qty) || qty < 1) {
-      Alert.alert('Invalid Quantity', 'Please enter a valid quantity.');
+      Alert.alert(t('Invalid Quantity'), t('Please enter a valid quantity.'));
       return;
     }
 
@@ -428,7 +437,7 @@ export default function PutawayScanningScreen() {
     if (!editQtyItem) return;
     const qty = parseInt(editQtyValue, 10);
     if (isNaN(qty) || qty < 0) {
-      Alert.alert('Invalid Quantity', 'Please enter a valid number.');
+      Alert.alert(t('Invalid Quantity'), t('Please enter a valid number.'));
       return;
     }
 
@@ -463,35 +472,105 @@ export default function PutawayScanningScreen() {
   const activeItems = allScannedItems.filter((it) => it.itemstatus !== 'cancelled');
   const totalUnits = activeItems.reduce((sum, it) => sum + it.packedqty, 0);
 
+  const pendingSummary = useMemo(() => {
+    if (cachedGrnItems.length === 0) {
+      return {
+        pendingLines: 0,
+        pendingUnits: 0,
+        totalAssignedLines: 0,
+        totalAssignedUnits: 0,
+      };
+    }
+
+    const scannedQtyMap = new Map<string, number>();
+    activeItems.forEach((it) => {
+      const code = String(it.itemcode || '').trim().toLowerCase();
+      scannedQtyMap.set(code, (scannedQtyMap.get(code) || 0) + it.packedqty);
+    });
+
+    let pendingLines = 0;
+    let totalAssignedUnits = 0;
+
+    cachedGrnItems.forEach((item) => {
+      const code = String(item.itemcode || item.itemCode || item.item || '').trim().toLowerCase();
+      const reqQty = Number(item.orderedQty ?? item.requested_quantity ?? item.qty ?? 1) || 1;
+      totalAssignedUnits += reqQty;
+      const binnedQty = scannedQtyMap.get(code) || 0;
+      if (binnedQty < reqQty) {
+        pendingLines += 1;
+      }
+    });
+
+    const pendingUnits = Math.max(0, totalAssignedUnits - totalUnits);
+
+    return {
+      pendingLines,
+      pendingUnits,
+      totalAssignedLines: cachedGrnItems.length,
+      totalAssignedUnits,
+    };
+  }, [cachedGrnItems, activeItems, totalUnits]);
+
   const handleSubmitPutaway = () => {
     if (activeItems.length === 0) {
-      Alert.alert('No Items', 'Please scan at least one item into the target bin.');
+      Alert.alert(t('No Items'), t('Please scan at least one item into the target bin.'));
       return;
     }
 
     Alert.alert(
-      'Submit Putaway',
-      `Complete putaway allocation of ${totalUnits} units (${activeItems.length} lines) into Bin ${binLocation} for GRN ${activeGrn}?`,
+      t('Submit Putaway'),
+      isHindi
+        ? `GRN ${activeGrn} के लिए बिन ${binLocation} में ${totalUnits} इकाइयों (${activeItems.length} लाइनों) का पुटअवे आवंटन पूर्ण करें?`
+        : `Complete putaway allocation of ${totalUnits} units (${activeItems.length} lines) into Bin ${binLocation} for GRN ${activeGrn}?`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('Cancel'), style: 'cancel' },
         {
-          text: 'Confirm & Submit',
-          onPress: () => {
-            setSubmitting(true);
-            setTimeout(() => {
-              clearInProgressScannedItems(activeGrn);
-              setSubmitting(false);
+          text: t('Confirm & Submit'),
+          onPress: async () => {
+            try {
+              setSubmitting(true);
+              const deptsToSubmit =
+                departments.length > 0
+                  ? departments
+                  : grnDepartmentParam
+                  ? grnDepartmentParam.split(',').map((d) => d.trim()).filter(Boolean)
+                  : [];
+
+              const payload = {
+                grn: activeGrn,
+                department: deptsToSubmit,
+                vouchdate: vouchDateParam,
+              };
+
+              console.log('[PutawayScanning] Submitting putaway GRN payload:', payload);
+
+              const res = await submitGrn(payload);
+              console.log('[PutawayScanning] Submit GRN API Response:', res);
+
+              await clearInProgressScannedItems(activeGrn);
+
               Alert.alert(
-                'Putaway Completed',
-                `Successfully allocated ${totalUnits} units into ${binLocation} for ${activeGrn}`,
+                t('Putaway Completed'),
+                res?.message ||
+                  (isHindi
+                    ? `${activeGrn} के लिए ${binLocation} में ${totalUnits} इकाइयां सफलतापूर्वक आवंटित की गईं`
+                    : `Successfully allocated ${totalUnits} units into ${binLocation} for ${activeGrn}`),
                 [
                   {
-                    text: 'Done',
+                    text: t('Done'),
                     onPress: () => router.replace('/(tabs)/putaway'),
                   },
                 ]
               );
-            }, 600);
+            } catch (err: any) {
+              console.error('[PutawayScanning] Submit GRN API error:', err);
+              Alert.alert(
+                t('Submit Error'),
+                err?.message || t('Failed to submit putaway GRN. Please try again.')
+              );
+            } finally {
+              setSubmitting(false);
+            }
           },
         },
       ]
@@ -500,29 +579,29 @@ export default function PutawayScanningScreen() {
 
   const getStatusBadge = (status: string) => {
     if (status === 'revised') {
-      return { label: 'REVISED', color: colors.violet, bg: colors.violetMuted, border: colors.violet };
+      return { label: t('REVISED'), color: colors.violet, bg: colors.violetMuted, border: colors.violet };
     }
     if (status === 'cancelled') {
-      return { label: 'CANCELLED', color: colors.red, bg: colors.redMuted, border: colors.red };
+      return { label: t('CANCELLED'), color: colors.red, bg: colors.redMuted, border: colors.red };
     }
-    return { label: 'SCANNED', color: colors.emerald, bg: `${colors.emerald}20`, border: colors.emerald };
+    return { label: t('SCANNED'), color: colors.emerald, bg: `${colors.emerald}20`, border: colors.emerald };
   };
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background, paddingTop: Math.max(insets.top, 16) }]}>
+    <View style={[styles.root, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       {/* ── Top Header ─────────────────────────────────────────── */}
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <View style={styles.headerLeft}>
-          <BrandLogo size={32} rounded />
-          <View>
-            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>{t('Putaway Scanning', 'Putaway Scanning')}</Text>
-            <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
-              GRN {activeGrn} · Bin {binLocation}{departments.length > 0 ? ` · ${departments[0]}` : ''}
-            </Text>
-          </View>
-        </View>
-        <HeaderActions />
-      </View>
+      <AppHeader
+        showBack
+        onBack={() => router.back()}
+        moduleTag={t('INBOUND PUTAWAY SCANNING')}
+        moduleTagColor={colors.violet}
+        title={t('Putaway Scanning')}
+        subtitle={`GRN ${activeGrn} · Bin ${binLocation}${departments.length > 0 ? ` · ${departments[0]}` : ''}`}
+        accentColor={colors.violet}
+        showLogo
+        showActions
+        showLogout
+      />
 
       <ScrollView
         style={styles.scrollView}
@@ -601,7 +680,7 @@ export default function PutawayScanningScreen() {
                     { color: showAllDepts ? colors.violet : colors.textSecondary },
                   ]}
                 >
-                  {showAllDepts ? 'Show less' : `+${departments.length - 1} more`}
+                  {showAllDepts ? t('Show less') : `+${departments.length - 1} ${t('more')}`}
                 </Text>
                 <Ionicons
                   name={showAllDepts ? 'chevron-up' : 'chevron-down'}
@@ -618,7 +697,7 @@ export default function PutawayScanningScreen() {
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Ionicons name="create-outline" size={12} color={colors.textSecondary} />
-            <Text style={[styles.backBtnText, { color: colors.textSecondary }]}>{t('Change', 'Change')}</Text>
+            <Text style={[styles.backBtnText, { color: colors.textSecondary }]}>{t('Change')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -628,10 +707,10 @@ export default function PutawayScanningScreen() {
           itemCode={itemCode}
           inputFocused={inputFocused}
           scanning={scanning}
-          title="Hardware Scanner"
-          subtitle={`Bin ${binLocation}${departments.length > 0 ? ` · ${departments[0]}` : ''} · ${inputFocused ? 'Ready for laser barcode scan' : 'Tap to focus scanner'}`}
-          placeholderFocused="● Scanner Active — Ready to scan SKU..."
-          placeholderBlurred="Tap to focus scanner..."
+          title={t('Hardware Scanner')}
+          subtitle={`Bin ${binLocation}${departments.length > 0 ? ` · ${departments[0]}` : ''} · ${inputFocused ? t('Ready for laser barcode scan') : t('Tap to focus scanner')}`}
+          placeholderFocused={`● ${t('Scanner Active — Ready to scan SKU...')}`}
+          placeholderBlurred={`${t('Tap to focus scanner')}...`}
           accentColor={colors.violet}
           onChangeText={handleTextChange}
           onSubmitEditing={() => {
@@ -657,17 +736,17 @@ export default function PutawayScanningScreen() {
                 <Ionicons name="cart" size={15} color={colors.violet} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.tableCardTitle, { color: colors.textPrimary }]}>{t('Putaway Manifest', 'Putaway Manifest')}</Text>
+                <Text style={[styles.tableCardTitle, { color: colors.textPrimary }]}>{t('Putaway Manifest')}</Text>
                 <Text style={[styles.tableCardSub, { color: colors.textMuted }]}>
                   {allScannedItems.length > 5
-                    ? `BIN ${binLocation} · ${allScannedItems.length} items`
-                    : `BIN ${binLocation} · ${activeItems.length} SKUs (${totalUnits} units)`}
+                    ? `BIN ${binLocation} · ${t('Showing latest 5 of')} ${allScannedItems.length} ${t('items')}`
+                    : `BIN ${binLocation} · ${activeItems.length} ${t('SKUs')} (${totalUnits} ${t('Units')})`}
                 </Text>
               </View>
             </View>
             <View style={[styles.tableCountBadge, { backgroundColor: colors.violetMuted, borderColor: `${colors.violet}40` }]}>
               <Text style={[styles.tableCountText, { color: colors.violet }]}>
-                {totalUnits} {t('BINNED', 'Units Binned')}
+                {totalUnits} {t('Units Binned')}
               </Text>
             </View>
           </View>
@@ -678,22 +757,22 @@ export default function PutawayScanningScreen() {
                 <Ionicons name="barcode-outline" size={28} color={colors.textMuted} />
               </View>
               <Text style={[styles.emptyTableTitle, { color: colors.textSecondary }]}>
-                {t('No items scanned to bin', 'No items scanned to bin')}
+                {t('No items scanned to bin')}
               </Text>
               <Text style={[styles.emptyTableSub, { color: colors.textMuted }]}>
-                {t('Trigger hardware scanner to allocate SKUs into', 'Trigger hardware scanner to allocate SKUs into')} {binLocation}
+                {t('Trigger hardware scanner to allocate SKUs into')} {binLocation}
               </Text>
             </View>
           ) : (
             <View style={styles.tableBodyWrap}>
               <View style={[styles.tableHeaderRow, { backgroundColor: colors.surface2, borderBottomColor: colors.border }]}>
                 <Text style={[styles.thCell, { color: colors.textMuted, width: 24, textAlign: 'center' }]}>#</Text>
-                <Text style={[styles.thCell, { color: colors.textMuted, width: 48 }]}>{t('BIN', 'BIN')}</Text>
-                <Text style={[styles.thCell, { color: colors.textMuted, flex: 1 }]}>{t('SKU', 'SKU')}</Text>
-                <Text style={[styles.thCell, { color: colors.textMuted, width: 34, textAlign: 'center' }]}>{t('ORD', 'ORD')}</Text>
-                <Text style={[styles.thCell, { color: colors.textMuted, width: 44, textAlign: 'center' }]}>{t('PUT', 'PUT')}</Text>
-                <Text style={[styles.thCell, { color: colors.textMuted, width: 28, textAlign: 'center' }]}>{t('DIF', 'DIF')}</Text>
-                <Text style={[styles.thCell, { color: colors.textMuted, width: 50, textAlign: 'center' }]}>{t('STAT', 'STAT')}</Text>
+                <Text style={[styles.thCell, { color: colors.textMuted, width: 48 }]}>{t('BIN')}</Text>
+                <Text style={[styles.thCell, { color: colors.textMuted, flex: 1 }]}>{t('SKU')}</Text>
+                <Text style={[styles.thCell, { color: colors.textMuted, width: 34, textAlign: 'center' }]}>{t('ORD')}</Text>
+                <Text style={[styles.thCell, { color: colors.textMuted, width: 44, textAlign: 'center' }]}>{t('PUT')}</Text>
+                <Text style={[styles.thCell, { color: colors.textMuted, width: 28, textAlign: 'center' }]}>{t('DIF')}</Text>
+                <Text style={[styles.thCell, { color: colors.textMuted, width: 50, textAlign: 'center' }]}>{t('STAT')}</Text>
               </View>
 
               {allScannedItems.slice(0, 5).map((item, idx) => {
@@ -849,7 +928,7 @@ export default function PutawayScanningScreen() {
                 <View style={[styles.limitedCartFooter, { borderTopColor: colors.border, backgroundColor: colors.surface2 }]}>
                   <Ionicons name="layers-outline" size={13} color={colors.violet} />
                   <Text style={[styles.limitedCartFooterText, { color: colors.textMuted }]}>
-                    Showing latest 5 of {allScannedItems.length} putaway items · All items are saved & counted
+                    {t('Showing latest 5 of')} {allScannedItems.length} {t('putaway items · All items are saved & counted')}
                   </Text>
                 </View>
               )}
@@ -860,22 +939,33 @@ export default function PutawayScanningScreen() {
         {/* ── Putaway Statistics Summary ───────────────────────── */}
         <View style={[styles.statsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.statsHeader}>
-            <Ionicons name="stats-chart" size={14} color={colors.violet} />
-            <Text style={[styles.statsTitle, { color: colors.textSecondary }]}>{t('PUTAWAY SUMMARY', 'PUTAWAY SUMMARY')}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="stats-chart" size={14} color={colors.violet} />
+              <Text style={[styles.statsTitle, { color: colors.textSecondary }]}>{t('PUTAWAY SUMMARY')}</Text>
+            </View>
+            {pendingSummary.totalAssignedUnits > 0 && (
+              <Text style={[styles.statsSubText, { color: colors.textMuted }]}>
+                {totalUnits}/{pendingSummary.totalAssignedUnits} {t('Units Binned')}
+              </Text>
+            )}
           </View>
 
           <View style={styles.statsRow}>
             <View style={[styles.statBox, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
               <Text style={[styles.statBoxNum, { color: colors.violet }]}>{allScannedItems.length}</Text>
-              <Text style={[styles.statBoxLabel, { color: colors.textMuted }]}>{t('TOTAL LINES', 'TOTAL LINES')}</Text>
+              <Text style={[styles.statBoxLabel, { color: colors.textMuted }]}>{t('TOTAL LINES')}</Text>
             </View>
             <View style={[styles.statBox, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
               <Text style={[styles.statBoxNum, { color: colors.emerald }]}>{totalUnits}</Text>
-              <Text style={[styles.statBoxLabel, { color: colors.textMuted }]}>{t('UNITS BINNED', 'UNITS BINNED')}</Text>
+              <Text style={[styles.statBoxLabel, { color: colors.textMuted }]}>{t('UNITS BINNED')}</Text>
+            </View>
+            <View style={[styles.statBox, { backgroundColor: colors.amberMuted, borderColor: `${colors.amber}50`, borderWidth: 1 }]}>
+              <Text style={[styles.statBoxNum, { color: colors.amber }]}>{pendingSummary.pendingLines}</Text>
+              <Text style={[styles.statBoxLabel, { color: colors.amber }]}>{t('PENDING ITEMS')}</Text>
             </View>
             <View style={[styles.statBox, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
               <Text style={[styles.statBoxNum, { color: colors.primary }]}>1</Text>
-              <Text style={[styles.statBoxLabel, { color: colors.textMuted }]}>{t('GRN LINKED', 'GRN LINKED')}</Text>
+              <Text style={[styles.statBoxLabel, { color: colors.textMuted }]}>{t('GRN LINKED')}</Text>
             </View>
           </View>
         </View>
@@ -898,7 +988,7 @@ export default function PutawayScanningScreen() {
             <>
               <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
               <Text style={styles.submitBtnText} numberOfLines={1} ellipsizeMode="tail">
-                {t('Submit Putaway', 'Submit Putaway')} ({totalUnits} {t('Units', 'Units')})
+                {t('Submit Putaway')} ({totalUnits} {t('Units')})
               </Text>
             </>
           )}
@@ -1285,12 +1375,18 @@ const styles = StyleSheet.create({
   statsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 6,
   },
   statsTitle: {
     fontSize: 11,
     fontFamily: monoFont,
     fontWeight: '800',
+  },
+  statsSubText: {
+    fontSize: 10,
+    fontFamily: monoFont,
+    fontWeight: '600',
   },
   statsRow: {
     flexDirection: 'row',

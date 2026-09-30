@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { borderRadius, spacing } from '../../constants/theme';
 
 export interface GrnDocumentItem {
@@ -41,9 +42,11 @@ interface GrnSelectSheetProps {
   title?: string;
   accentColor?: string;
   singleSelect?: boolean;
+  selectedDepts?: string[];
+  onToggleDept?: (grnNumber: string, deptName: string) => void;
 }
 
-const monoFont = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
+const monoFont = Platform.select({ ios: 'System', android: 'sans-serif', default: 'System' });
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
 export const GrnSelectSheet: React.FC<GrnSelectSheetProps> = ({
@@ -53,13 +56,18 @@ export const GrnSelectSheet: React.FC<GrnSelectSheetProps> = ({
   selectedGrns,
   onToggleGrn,
   onSelectAll,
-  title = 'Select GRN Documents',
+  title,
   accentColor,
   singleSelect = false,
+  selectedDepts,
+  onToggleDept,
 }) => {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
+  const { t } = useLanguage();
   const [search, setSearch] = useState('');
+
+  const displayTitle = title || t('Select GRN Documents');
 
   const accent = accentColor || colors.violet;
 
@@ -113,19 +121,19 @@ export const GrnSelectSheet: React.FC<GrnSelectSheetProps> = ({
               <View style={styles.header}>
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Text style={[styles.title, { color: colors.textPrimary }]}>{title}</Text>
+                    <Text style={[styles.title, { color: colors.textPrimary }]}>{displayTitle}</Text>
                     <View style={[styles.badgePill, { backgroundColor: `${accent}20`, borderColor: `${accent}40` }]}>
                       <Text style={[styles.badgePillText, { color: accent }]}>
-                        {singleSelect ? 'SINGLE-SELECT' : 'MULTI-SELECT'}
+                        {singleSelect ? t('SINGLE-SELECT') : t('MULTI-SELECT')}
                       </Text>
                     </View>
                   </View>
                   <Text style={[styles.subtitle, { color: colors.textMuted }]}>
                     {singleSelect
                       ? selectedGrns.length > 0
-                        ? `Selected: ${selectedGrns[0]}`
-                        : `Choose 1 of ${grns.length} GRNs`
-                      : `${selectedGrns.length} of ${grns.length} GRNs selected`}
+                        ? `${t('Selected')}: ${selectedGrns[0]}`
+                        : `${t('Choose 1 of')} ${grns.length} ${t('GRNs')}`
+                      : `${selectedGrns.length} / ${grns.length} ${t('GRNs selected')}`}
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -150,7 +158,7 @@ export const GrnSelectSheet: React.FC<GrnSelectSheetProps> = ({
                 <Ionicons name="search" size={16} color={colors.textMuted} />
                 <TextInput
                   style={[styles.searchInput, { color: colors.textPrimary }]}
-                  placeholder="Search GRN number, supplier, or zone..."
+                  placeholder=""
                   placeholderTextColor={colors.textMuted}
                   value={search}
                   onChangeText={setSearch}
@@ -189,7 +197,7 @@ export const GrnSelectSheet: React.FC<GrnSelectSheetProps> = ({
                     {allSelected && <Ionicons name="checkmark" size={13} color="#FFFFFF" />}
                   </View>
                   <Text style={[styles.selectAllText, { color: colors.textPrimary }]}>
-                    {allSelected ? 'Deselect All GRNs' : 'Select All GRNs'}
+                    {allSelected ? t('Deselect All GRNs') : t('Select All GRNs')}
                   </Text>
                   <Text style={[styles.selectAllCount, { color: accent }]}>
                     ({selectedGrns.length}/{grns.length})
@@ -207,7 +215,7 @@ export const GrnSelectSheet: React.FC<GrnSelectSheetProps> = ({
                   <View style={styles.emptyWrap}>
                     <Ionicons name="folder-open-outline" size={32} color={colors.textMuted} />
                     <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-                      No GRN documents match "{search}"
+                      {t('No GRN documents match')} "{search}"
                     </Text>
                   </View>
                 ) : (
@@ -234,7 +242,11 @@ export const GrnSelectSheet: React.FC<GrnSelectSheetProps> = ({
                           },
                         ]}
                         activeOpacity={0.75}
-                        onPress={() => onToggleGrn(item.grn_number)}
+                        onPress={() => {
+                          if (!singleSelect || !isSelected) {
+                            onToggleGrn(item.grn_number);
+                          }
+                        }}
                       >
                         {/* Checkbox / Radio */}
                         <View
@@ -304,38 +316,78 @@ export const GrnSelectSheet: React.FC<GrnSelectSheetProps> = ({
                                     },
                                   ]}
                                 >
-                                  {item.status.toUpperCase()}
+                                  {t(item.status.toUpperCase())}
                                 </Text>
                               </View>
                             ) : item.items_count !== undefined ? (
                               <View style={[styles.statusPill, { backgroundColor: colors.surface3, borderColor: colors.border }]}>
                                 <Text style={[styles.statusPillText, { color: colors.textSecondary }]}>
-                                  {item.items_count} {item.items_count === 1 ? 'ITEM' : 'ITEMS'}
+                                  {item.items_count} {item.items_count === 1 ? t('ITEM') : t('ITEMS')}
                                 </Text>
                               </View>
                             ) : null}
                           </View>
 
-                          {/* Row 2: Department chips (flex-wrap, never cut off) */}
+                          {/* Row 2: Department selection chips on GRN card */}
                           {depts.length > 0 && (
                             <View style={styles.deptChipsWrap}>
-                              {depts.map((deptName, dIdx) => (
-                                <View
-                                  key={`${item.id}-d-${dIdx}`}
-                                  style={[
-                                    styles.deptChip,
-                                    {
-                                      backgroundColor: isSelected ? `${accent}25` : `${accent}14`,
-                                      borderColor: isSelected ? `${accent}50` : `${accent}30`,
-                                    },
-                                  ]}
-                                >
-                                  <Ionicons name="pricetag-outline" size={10} color={accent} />
-                                  <Text style={[styles.deptChipText, { color: accent }]}>
-                                    {deptName}
-                                  </Text>
-                                </View>
-                              ))}
+                              {depts.map((deptName, dIdx) => {
+                                const isDeptActive = isSelected
+                                  ? !selectedDepts || selectedDepts.length === 0 || selectedDepts.includes(deptName)
+                                  : false;
+
+                                return (
+                                  <TouchableOpacity
+                                    key={`${item.id}-d-${dIdx}`}
+                                    style={[
+                                      styles.deptChip,
+                                      {
+                                        backgroundColor: isDeptActive
+                                          ? `${accent}25`
+                                          : isSelected
+                                          ? `${colors.border}40`
+                                          : `${accent}14`,
+                                        borderColor: isDeptActive
+                                          ? accent
+                                          : isSelected
+                                          ? colors.border
+                                          : `${accent}30`,
+                                      },
+                                    ]}
+                                    activeOpacity={0.7}
+                                    onPress={() => {
+                                      if (onToggleDept) {
+                                        onToggleDept(item.grn_number, deptName);
+                                      } else {
+                                        onToggleGrn(item.grn_number);
+                                      }
+                                    }}
+                                  >
+                                    <View
+                                      style={[
+                                        styles.miniCheckbox,
+                                        {
+                                          backgroundColor: isDeptActive ? accent : 'transparent',
+                                          borderColor: isDeptActive ? accent : colors.textMuted,
+                                        },
+                                      ]}
+                                    >
+                                      {isDeptActive && <Ionicons name="checkmark" size={9} color="#FFFFFF" />}
+                                    </View>
+                                    <Text
+                                      style={[
+                                        styles.deptChipText,
+                                        {
+                                          color: isDeptActive ? accent : colors.textSecondary,
+                                          fontWeight: isDeptActive ? '800' : '500',
+                                        },
+                                      ]}
+                                    >
+                                      {deptName}
+                                    </Text>
+                                  </TouchableOpacity>
+                                );
+                              })}
                             </View>
                           )}
 
@@ -345,7 +397,7 @@ export const GrnSelectSheet: React.FC<GrnSelectSheetProps> = ({
                               <View style={styles.metaItem}>
                                 <Ionicons name="receipt-outline" size={11} color={colors.textMuted} />
                                 <Text style={[styles.metaText, { color: colors.textSecondary }]} numberOfLines={1}>
-                                  Bill: {item.bill_no}
+                                  {t('Bill')}: {item.bill_no}
                                 </Text>
                               </View>
                             ) : item.supplier ? (
@@ -382,10 +434,10 @@ export const GrnSelectSheet: React.FC<GrnSelectSheetProps> = ({
                 >
                   <Text style={styles.doneBtnText} numberOfLines={1} ellipsizeMode="tail">
                     {selectedGrns.length === 0
-                      ? 'Done'
+                      ? t('Done')
                       : singleSelect
-                      ? `Confirm Selection (${selectedGrns[0]})`
-                      : `Confirm Selection (${selectedGrns.length} GRN${selectedGrns.length !== 1 ? 's' : ''})`}
+                      ? `${t('Confirm Selection')} (${selectedGrns[0]})`
+                      : `${t('Confirm Selection')} (${selectedGrns.length} ${t('GRNs')})`}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -563,6 +615,14 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: monoFont,
     fontWeight: '700',
+  },
+  miniCheckbox: {
+    width: 13,
+    height: 13,
+    borderRadius: 3,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   grnSubRow: {
     flexDirection: 'row',
