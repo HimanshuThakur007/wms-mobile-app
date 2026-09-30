@@ -612,12 +612,11 @@ export default function PutawayScanningScreen() {
 
               await clearInProgressScannedItems(activeGrn);
 
+              const responseText = res?.message || (typeof res === 'object' ? JSON.stringify(res) : String(res));
+
               Alert.alert(
                 t('Putaway Completed'),
-                res?.message ||
-                  (isHindi
-                    ? `${activeGrn} के लिए ${binLocation} में ${totalUnits} इकाइयां सफलतापूर्वक आवंटित की गईं`
-                    : `Successfully allocated ${totalUnits} units into ${binLocation} for ${activeGrn}`),
+                `Response: ${responseText}`,
                 [
                   {
                     text: t('Done'),
